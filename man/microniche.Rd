@@ -285,6 +285,8 @@ out <- microniche(
 \itemize{
 \item Zárate-Salazar, J. Rafael, PhD
 \item Valença, Saulo E. S., MSc
+\item Castro, Luis Miguel Senzano, PhD
+\item Rubalcaba, Juan G., PhD
 \item Gouveia, Sidney Feitosa, PhD
 }
 }

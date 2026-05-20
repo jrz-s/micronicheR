@@ -46,10 +46,9 @@ microniche_setup(
 )
 ```
 
-## Install Global Climate from NicheMap
+## Install NicheMapR Global Climate Data
 
-After the global climate data download is complete, `restart R` before
-running `microniche()` function.
+Run the following command once before using `microniche()`:
 
 ``` r
 microniche_setup_global_climate(folder = getwd())

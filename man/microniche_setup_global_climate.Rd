@@ -20,3 +20,8 @@ Downloads and registers the global climate data required by \code{NicheMapR::mic
 \details{
 Download and register NicheMapR global climate data
 }
+\author{
+\itemize{
+\item Zárate-Salazar, J. Rafael, PhD
+}
+}

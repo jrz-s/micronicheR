@@ -2,6 +2,10 @@
 #'
 #' @title Set up NicheMapR global climate data
 #' @description Downloads and registers the global climate data required by `NicheMapR::micro_global()`.
+#' @author
+#' \itemize{
+#'   \item Zárate-Salazar, J. Rafael, PhD
+#' }
 #' @param folder Character. Folder where the global climate data should be downloaded. Default is the current working directory.
 #' @param timeout Numeric. Download timeout in seconds. Default is 600.
 #' @return Invisibly returns TRUE if the setup process finishes.
