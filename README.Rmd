@@ -12,7 +12,7 @@ The package was designed to:
 - integrate environmental rasters and physiological traits;
 - support large-scale spatial simulations.
 
-## Pre-instalation
+## Pre-installation requirements
 
 The `micronicheR` package works correctly with `R version 4.4.3`, which can be downloaded from the following link: 
 [Download R version 4.4.3](https://cran.r-project.org/bin/windows/base/old/4.4.3/R-4.4.3-win.exe)
@@ -21,28 +21,39 @@ After downloading it, change the current R version in your RStudio, as shown in 
 
 <img src="man/figures/change-r-version-rstudio.png" width="700px">
 
-## Installation
+## Install `micronicheR`
 
 ```{r eval=FALSE}
+
 install.packages("remotes")
 
-remotes::install_github("jrz-s/micronicheR")
+options(timeout = 600)
+
+remotes::install_github(
+    "jrz-s/micronicheR"
+  , dependencies = TRUE
+  , upgrade = "never"
+  , method = "libcurl"
+)
+
 ```
 
-## Install dependencies
+## Load packages
+
+```{r message=FALSE, warning=FALSE}
+
+library(micronicheR)
+library(terra)
+
+```
+
+## Install `NicheMapR`
+
+The helper function below installs the GitHub version of `NicheMapR`, which is required by `micronicheR`.
 
 ```{r eval=FALSE}
-microniche_setup(
-  cran = c(
-    "terra",
-    "dplyr",
-    "tidyr",
-    "tibble",
-    "purrr",
-    "here"
-  ),
-  github = "mrke/NicheMapR"
-)
+
+micronicheR::microniche_setup(github = "mrke/NicheMapR")
 
 ```
 
@@ -52,15 +63,8 @@ Run the following command once before using `microniche()`:
 
 ```{r eval=FALSE}
 
-microniche_setup_global_climate(folder = getwd())
+micronicheR::microniche_setup_global_climate(folder = getwd())
 
-```
-
-## Load package
-
-```{r message=FALSE, warning=FALSE}
-library(micronicheR)
-library(terra)
 ```
 
 ## Example datasets
@@ -68,8 +72,10 @@ library(terra)
 The package contains example rasters, coordinates, and species traits. Check the sample data from the package `microniche`.
 
 ```{r}
+
 list.files(
   system.file("extdata", package = "micronicheR"))
+
 ```
 
 The following five files should appear:
@@ -83,77 +89,86 @@ The following five files should appear:
 ### Load example rasters
 
 ```{r eval=FALSE}
+
 cover <- terra::rast(
   system.file(
-    "extdata",
-    "cover_example.tif",
-    package = "micronicheR"
+      "extdata"
+    , "cover_example.tif"
+    , package = "micronicheR"
   )
 )
 
 elev <- terra::rast(
   system.file(
-    "extdata",
-    "elevation_example.tif",
-    package = "micronicheR"
+      "extdata"
+    , "elevation_example.tif"
+    , package = "micronicheR"
   )
 )
 
 study <- terra::rast(
   system.file(
-    "extdata",
-    "study_example.tif",
-    package = "micronicheR"
+      "extdata",
+    , "study_example.tif"
+    , package = "micronicheR"
   )
 )
+
 ```
 
 ### Load species traits
 
 ```{r eval=FALSE}
+
 traits <- read.csv(
   system.file(
-    "extdata",
-    "traits_example.csv",
-    package = "micronicheR"
+      "extdata"
+    , "traits_example.csv"
+    , package = "micronicheR"
   )
 )
 
 head(traits)
+
 ```
 
 ### Load coordinates
 
 ```{r eval=FALSE}
+
 coords <- read.csv(
   system.file(
-    "extdata",
-    "coord_example.csv",
-    package = "micronicheR"
+      "extdata"
+    , "coord_example.csv"
+    , package = "micronicheR"
   )
+  , row.names = 1
 )
 
 head(coords)
+
 ```
 
 ## Convert rasters to data frame
 
 ```{r eval=FALSE}
-df <- rast_to_df(
-  rcover = cover,
-  rtop = elev,
-  rast_or_coord = study,
-  return = "data"
+
+df <- micronicheR::rast_to_df(
+    rcover = cover
+  , rtop = elev
+  , rast_or_coord = study
+  , return = "data"
 )
 
 head(df)
+
 ```
 
 ## Run microniche model using study raster
 
 ```{r eval=FALSE}
 
-out_df_toraster <- microniche(
+out_df_toraster <- micronicheR::microniche(
     rcover = cover
   , rtop = elev
   , rast_or_coord = study
@@ -163,13 +178,14 @@ out_df_toraster <- microniche(
 )
 
 head(out_df_toraster)
+
 ```
 
 ## Run microniche model using coordinates
 
 ```{r eval=FALSE}
 
-out_df_tocoord <- microniche(
+out_df_tocoord <- micronicheR::microniche(
     rcover = cover
   , rtop = elev
   , rast_or_coord = coords
@@ -179,6 +195,7 @@ out_df_tocoord <- microniche(
 )
 
 head(out_df_tocoord)
+
 ```
 
 ## Other Outputs 
@@ -188,13 +205,14 @@ The package supports three output modes.
 ### 1. List 
 
 ```{r eval=FALSE}
-out_list <- microniche(
-  rcover = cover,
-  rtop = elev,
-  rast_or_coord = study,
-  traits_df = traits,
-  sample_n = 2,
-  list_format = TRUE,
+
+out_list <- micronicheR::microniche(
+    rcover = cover
+  , rtop = elev
+  , rast_or_coord = study
+  , traits_df = traits
+  , sample_n = 2
+  , list_format = TRUE
 )
 
 str(out_list, max.level = 3)
@@ -226,7 +244,7 @@ summary = TRUE
 
 ```{r eval=FALSE}
 
-out_summary <- microniche(
+out_summary <- micronicheR::microniche(
     rcover = cover
   , rtop = elev
   , rast_or_coord = coords

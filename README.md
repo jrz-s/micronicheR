@@ -11,7 +11,7 @@ The package was designed to:
 - integrate environmental rasters and physiological traits;
 - support large-scale spatial simulations.
 
-## Pre-instalation
+## Pre-installation requirements
 
 The `micronicheR` package works correctly with `R version 4.4.3`, which
 can be downloaded from the following link: [Download R version
@@ -22,28 +22,35 @@ shown in the figure below:
 
 <img src="man/figures/change-r-version-rstudio.png" width="700px">
 
-## Installation
+## Install `micronicheR`
 
 ``` r
 install.packages("remotes")
 
-remotes::install_github("jrz-s/micronicheR")
+options(timeout = 600)
+
+remotes::install_github(
+    "jrz-s/micronicheR"
+  , dependencies = TRUE
+  , upgrade = "never"
+  , method = "libcurl"
+)
 ```
 
-## Install dependencies
+## Load packages
 
 ``` r
-microniche_setup(
-  cran = c(
-    "terra",
-    "dplyr",
-    "tidyr",
-    "tibble",
-    "purrr",
-    "here"
-  ),
-  github = "mrke/NicheMapR"
-)
+library(micronicheR)
+library(terra)
+```
+
+## Install `NicheMapR`
+
+The helper function below installs the GitHub version of `NicheMapR`,
+which is required by `micronicheR`.
+
+``` r
+micronicheR::microniche_setup(github = "mrke/NicheMapR")
 ```
 
 ## Install NicheMapR Global Climate Data
@@ -51,14 +58,7 @@ microniche_setup(
 Run the following command once before using `microniche()`:
 
 ``` r
-microniche_setup_global_climate(folder = getwd())
-```
-
-## Load package
-
-``` r
-library(micronicheR)
-library(terra)
+micronicheR::microniche_setup_global_climate(folder = getwd())
 ```
 
 ## Example datasets
@@ -87,25 +87,25 @@ The following five files should appear:
 ``` r
 cover <- terra::rast(
   system.file(
-    "extdata",
-    "cover_example.tif",
-    package = "micronicheR"
+      "extdata"
+    , "cover_example.tif"
+    , package = "micronicheR"
   )
 )
 
 elev <- terra::rast(
   system.file(
-    "extdata",
-    "elevation_example.tif",
-    package = "micronicheR"
+      "extdata"
+    , "elevation_example.tif"
+    , package = "micronicheR"
   )
 )
 
 study <- terra::rast(
   system.file(
-    "extdata",
-    "study_example.tif",
-    package = "micronicheR"
+      "extdata",
+    , "study_example.tif"
+    , package = "micronicheR"
   )
 )
 ```
@@ -115,9 +115,9 @@ study <- terra::rast(
 ``` r
 traits <- read.csv(
   system.file(
-    "extdata",
-    "traits_example.csv",
-    package = "micronicheR"
+      "extdata"
+    , "traits_example.csv"
+    , package = "micronicheR"
   )
 )
 
@@ -129,10 +129,11 @@ head(traits)
 ``` r
 coords <- read.csv(
   system.file(
-    "extdata",
-    "coord_example.csv",
-    package = "micronicheR"
+      "extdata"
+    , "coord_example.csv"
+    , package = "micronicheR"
   )
+  , row.names = 1
 )
 
 head(coords)
@@ -141,11 +142,11 @@ head(coords)
 ## Convert rasters to data frame
 
 ``` r
-df <- rast_to_df(
-  rcover = cover,
-  rtop = elev,
-  rast_or_coord = study,
-  return = "data"
+df <- micronicheR::rast_to_df(
+    rcover = cover
+  , rtop = elev
+  , rast_or_coord = study
+  , return = "data"
 )
 
 head(df)
@@ -154,7 +155,7 @@ head(df)
 ## Run microniche model using study raster
 
 ``` r
-out_df_toraster <- microniche(
+out_df_toraster <- micronicheR::microniche(
     rcover = cover
   , rtop = elev
   , rast_or_coord = study
@@ -169,7 +170,7 @@ head(out_df_toraster)
 ## Run microniche model using coordinates
 
 ``` r
-out_df_tocoord <- microniche(
+out_df_tocoord <- micronicheR::microniche(
     rcover = cover
   , rtop = elev
   , rast_or_coord = coords
@@ -188,13 +189,13 @@ The package supports three output modes.
 ### 1. List
 
 ``` r
-out_list <- microniche(
-  rcover = cover,
-  rtop = elev,
-  rast_or_coord = study,
-  traits_df = traits,
-  sample_n = 2,
-  list_format = TRUE,
+out_list <- micronicheR::microniche(
+    rcover = cover
+  , rtop = elev
+  , rast_or_coord = study
+  , traits_df = traits
+  , sample_n = 2
+  , list_format = TRUE
 )
 
 str(out_list, max.level = 3)
@@ -225,7 +226,7 @@ summary = TRUE
 ```
 
 ``` r
-out_summary <- microniche(
+out_summary <- micronicheR::microniche(
     rcover = cover
   , rtop = elev
   , rast_or_coord = coords
