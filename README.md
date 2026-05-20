@@ -156,7 +156,7 @@ out_df_toraster <- microniche(
   , download_global_climate = TRUE
 )
 
-head(out)
+head(out_df_toraster)
 ```
 
 ## Run microniche model using coordinates
@@ -172,7 +172,7 @@ out_df_tocoord <- microniche(
   , download_global_climate = TRUE
 )
 
-head(out_coord)
+head(out_df_tocoord)
 ```
 
 ## Other Outputs
