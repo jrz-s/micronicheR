@@ -1,0 +1,30 @@
+Package: micronicheR
+Type: Package
+Title: Microclimate-Based Physiological Niche Modeling
+Version: 0.1.0
+Authors@R: 
+    person(
+      given = "J. Rafael",
+      family = "Zárate-Salazar",
+      role = c("aut", "cre"),
+      email = "rzaratesalazar@gmail.com"
+    )
+Description: Tools for microclimate-based physiological niche modeling
+    using environmental rasters, species traits, and NicheMapR.
+License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: true
+Roxygen: list(markdown = TRUE)
+Imports:
+    terra,
+    dplyr,
+    tidyr,
+    tibble,
+    purrr,
+    here,
+    remotes,
+    magrittr,
+    rlang
+Suggests:
+    NicheMapR
+Config/roxygen2/version: 8.0.0
