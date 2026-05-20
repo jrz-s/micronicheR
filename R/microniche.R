@@ -725,10 +725,6 @@ microniche <- function(
     )
   }
 
-  suppressPackageStartupMessages(
-    require("NicheMapR", character.only = TRUE)
-  )
-
   micro_pixels <- micro_by_pixel(df = df)
 
   # 3.4. Run the physiological model for each species
