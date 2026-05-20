@@ -14,7 +14,7 @@ The package was designed to:
 
 ## Pre-instalation
 
-The `micronicheR` package works correctly with R version 4.4.3, which can be downloaded from the following link: 
+The `micronicheR` package works correctly with `R version 4.4.3`, which can be downloaded from the following link: 
 [Download R version 4.4.3](https://cran.r-project.org/bin/windows/base/old/4.4.3/R-4.4.3-win.exe)
 
 After downloading it, change the current R version in your RStudio, as shown in the figure below:
