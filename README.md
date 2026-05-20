@@ -258,7 +258,7 @@ Before running `microniche()` for the first time, users should download
 and register the required global climate data:
 
 ``` r
-microniche_setup_global_climate(folder = getwd())
+micronicheR::microniche_setup_global_climate(folder = getwd())
 ```
 
 ## Author(s)
