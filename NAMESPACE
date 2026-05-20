@@ -2,6 +2,7 @@
 
 export(microniche)
 export(microniche_setup)
+export(microniche_setup_global_climate)
 export(rast_to_df)
 importFrom(dplyr,coalesce)
 importFrom(dplyr,group_by)

@@ -16,8 +16,6 @@ microniche(
   sample_n = NULL,
   sample_frac = NULL,
   seed = NULL,
-  download_global_climate = FALSE,
-  global_climate_folder = getwd(),
   maxshade = 100,
   runshade = 1,
   Usrhyt = 0.01,

@@ -46,6 +46,15 @@ microniche_setup(
 )
 ```
 
+## Install Global Climate from NicheMap
+
+After the global climate data download is complete, `restart R` before
+running `microniche()` function.
+
+``` r
+microniche_setup_global_climate(folder = getwd())
+```
+
 ## Load package
 
 ``` r
@@ -153,7 +162,6 @@ out_df_toraster <- microniche(
   , traits_df = traits
   , sample_n = 2
   , list_format = FALSE
-  , download_global_climate = TRUE
 )
 
 head(out_df_toraster)
@@ -169,7 +177,6 @@ out_df_tocoord <- microniche(
   , traits_df = traits
   , sample_n = 2
   , list_format = FALSE
-  , download_global_climate = TRUE
 )
 
 head(out_df_tocoord)
@@ -189,7 +196,6 @@ out_list <- microniche(
   traits_df = traits,
   sample_n = 2,
   list_format = TRUE,
-  download_global_climate = TRUE
 )
 
 str(out_list, max.level = 3)
@@ -227,7 +233,6 @@ out_summary <- microniche(
   , traits_df = traits
   , sample_n = 2
   , list_format = FALSE
-  , download_global_climate = TRUE
   , summary = TRUE
     
 )
@@ -249,14 +254,11 @@ Downloading these data may require a stable internet connection and can
 occasionally fail due to timeout, interrupted downloads, GitHub
 availability, or local permission issues.
 
-If the automatic download fails, users should try:
+Before running `microniche()` for the first time, users should download
+and register the required global climate data:
 
 ``` r
-options(timeout = 600)
-
-NicheMapR::get.global.climate(
-  folder = getwd()
-)
+microniche_setup_global_climate(folder = getwd())
 ```
 
 ## Author(s)

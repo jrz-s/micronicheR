@@ -139,10 +139,6 @@ microniche <- function(
   , sample_frac = NULL
   , seed = NULL
 
-  # Global climate control
-  , download_global_climate = FALSE
-  , global_climate_folder = getwd()
-
   # ----------------------- #
   # Environmental arguments
   # ----------------------- #
@@ -581,51 +577,19 @@ microniche <- function(
 
   if (!file.exists(gcfolder_file)) {
 
-    if (isTRUE(download_global_climate)) {
-
-      message(
-        "Global climate data were not found.\n",
-        "Downloading global climate data into: ",
-        global_climate_folder
-      )
-
-      old_timeout <- getOption("timeout")
-      options(timeout = max(600, old_timeout))
-      on.exit(options(timeout = old_timeout), add = TRUE)
-
-      NicheMapR::get.global.climate(
-        folder = global_climate_folder
-      )
-
-      if (!file.exists(gcfolder_file)) {
-
-        stop(
-          "Global climate data were not installed correctly.\n",
-          "NicheMapR did not create the expected file:\n",
-          gcfolder_file,
-          "\n\nPlease run manually:\n",
-          "options(timeout = 600)\n",
-          "NicheMapR::get.global.climate(folder = '", global_climate_folder, "')"
-        )
-      }
-
-    } else {
-
-      stop(
-        "Global climate data were not found.\n\n",
-        "To download them automatically, run microniche() with:\n",
-        "download_global_climate = TRUE\n\n",
-        "Or install them manually with:\n",
-        "options(timeout = 600)\n",
-        "NicheMapR::get.global.climate(folder = '", global_climate_folder, "')"
-      )
-    }
+    stop(
+      "NicheMapR global climate data were not found.\n\n",
+      "Please run this once before using microniche():\n\n",
+      "microniche_setup_global_climate(folder = getwd())\n\n",
+      "After the download finishes, restart R and run microniche() again."
+    )
 
   } else {
 
     message(
-      "Global climate data location already registered by NicheMapR. Continuing process..."
+      "NicheMapR global climate data are registered. Continuing process..."
     )
+
   }
 
   # 3.2. If traits_df is not provided, create a default species
@@ -752,6 +716,18 @@ microniche <- function(
 
   # 3.3. Run microclimate only once per pixel
   # The internal function micro_by_pixel() is called here.
+
+  if (!requireNamespace("NicheMapR", quietly = TRUE)) {
+    stop(
+      "Package 'NicheMapR' is required.\n",
+      "Please install it with:\n",
+      "microniche_setup(github = 'mrke/NicheMapR')"
+    )
+  }
+
+  suppressPackageStartupMessages(
+    require("NicheMapR", character.only = TRUE)
+  )
 
   micro_pixels <- micro_by_pixel(df = df)
 
