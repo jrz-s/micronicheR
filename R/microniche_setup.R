@@ -23,21 +23,41 @@ microniche_setup <- function(cran = NULL, github = NULL) {
 
   message("Checking CRAN packages...")
 
-  # Identify missing CRAN packages
-  missing_cran <- cran[!cran %in% rownames(installed.packages())]
+  if (!is.null(cran)) {
 
-  if (length(missing_cran) > 0) {
-    message("Installing CRAN packages: ", paste(missing_cran, collapse = ", "))
-    install.packages(missing_cran, dependencies = TRUE)
-  } else {
-    message("All CRAN packages already installed.")
+    missing_cran <- cran[!vapply(
+      cran,
+      requireNamespace,
+      logical(1),
+      quietly = TRUE
+    )]
+
+    if (length(missing_cran) > 0) {
+      message("Installing CRAN packages: ", paste(missing_cran, collapse = ", "))
+      utils::install.packages(missing_cran, dependencies = TRUE)
+    } else {
+      message("All CRAN packages are already installed.")
+    }
+
+    failed_cran <- cran[!vapply(
+      cran,
+      requireNamespace,
+      logical(1),
+      quietly = TRUE
+    )]
+
+    if (length(failed_cran) > 0) {
+      stop(
+        "The following CRAN packages could not be installed or loaded: ",
+        paste(failed_cran, collapse = ", ")
+      )
+    }
   }
 
-  # Install GitHub packages if provided
   if (!is.null(github)) {
 
     if (!requireNamespace("remotes", quietly = TRUE)) {
-      install.packages("remotes")
+      utils::install.packages("remotes")
     }
 
     for (repo in github) {
@@ -45,28 +65,32 @@ microniche_setup <- function(cran = NULL, github = NULL) {
       pkg <- basename(repo)
 
       if (!requireNamespace(pkg, quietly = TRUE)) {
+
         message("Installing GitHub package: ", repo)
-        remotes::install_github(repo, dependencies = TRUE)
+
+        remotes::install_github(
+          repo,
+          dependencies = TRUE,
+          upgrade = "never"
+        )
       } else {
-        message(pkg, " already installed.")
+        message(pkg, " is already installed.")
+      }
+
+      if (!requireNamespace(pkg, quietly = TRUE)) {
+        stop(
+          "GitHub package '", pkg, "' could not be installed or loaded.\n",
+          "Repository: ", repo, "\n\n",
+          "On Windows, this may require Rtools. For NicheMapR, install Rtools44, ",
+          "restart RStudio, and try again."
+        )
       }
     }
   }
 
-  # Combine package names
-  all_packages <- c(cran, basename(github))
+  message("All requested packages are ready.")
 
-  message("Loading packages...")
-
-  invisible(
-    lapply(
-      all_packages,
-      function(pkg) requireNamespace(pkg, quietly = TRUE)
-    )
-  )
-
-  message("All packages ready.")
-
+  invisible(TRUE)
 }
 
 # -------------------------------------------------------------------------
