@@ -61,7 +61,7 @@ list.files(
   system.file("extdata", package = "micronicheR"))
 ```
 
-A list of the following files should appear:
+The following five files should appear:
 
 - "coord_example.csv"<br>
 - "cover_example.tif"<br>

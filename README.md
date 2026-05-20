@@ -66,7 +66,7 @@ list.files(
     ## [1] "coord_example.csv"     "cover_example.tif"     "elevation_example.tif"
     ## [4] "study_example.tif"     "traits_example.csv"
 
-A list of the following files should appear:
+The following five files should appear:
 
 - “coord_example.csv”<br>
 - “cover_example.tif”<br>
