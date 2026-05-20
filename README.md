@@ -13,7 +13,7 @@ The package was designed to:
 
 ## Pre-instalation
 
-The `micronicheR` package works correctly with R version 4.4.3, which
+The `micronicheR` package works correctly with `R version 4.4.3`, which
 can be downloaded from the following link: [Download R version
 4.4.3](https://cran.r-project.org/bin/windows/base/old/4.4.3/R-4.4.3-win.exe)
 
@@ -236,6 +236,28 @@ head(out_summary)
 ```
 
 Returns daily summaries by species and pixel.
+
+## Disclaimer
+
+`micronicheR` is currently under active development and should be
+considered experimental software. Functions, arguments, outputs, and
+workflows may change in future versions.
+
+Some functions rely on external resources from `NicheMapR`, especially
+the global climate database required by `NicheMapR::micro_global()`.
+Downloading these data may require a stable internet connection and can
+occasionally fail due to timeout, interrupted downloads, GitHub
+availability, or local permission issues.
+
+If the automatic download fails, users should try:
+
+``` r
+options(timeout = 600)
+
+NicheMapR::get.global.climate(
+  folder = getwd()
+)
+```
 
 ## Author(s)
 
