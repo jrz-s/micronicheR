@@ -317,7 +317,7 @@ install `Rtools44` from:
 [Install Rtools44](https://cran.r-project.org/bin/windows/Rtools/)
 
 After installing `Rtools44`, restart RStudio and run the installation
-again (See Install `NicheMapR` section).
+again (**See** “Install `NicheMapR`” section).
 
 Before running `micronicheR::microniche()` for the first time, users
 should download and register the required global climate data:
