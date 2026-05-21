@@ -52,7 +52,7 @@ which is required by `micronicheR`.
 micronicheR::microniche_setup(github = "mrke/NicheMapR")
 ```
 
-⚠️**Note for Windows users**
+⚠️ **Note for Windows users**
 
 On some Windows systems, installing `NicheMapR` may require `Rtools44`
 because the package contains compiled `Fortran` code.
@@ -67,6 +67,14 @@ If you see errors related to:
 Install `Rtools44` from:
 
 [install Rtools44](https://cran.r-project.org/bin/windows/Rtools/)
+
+After clicking the link, follow the steps below:
+
+**Step 01** <img src="man/figures/rtools44_a.png" width="700px">
+
+**Step 02**
+
+<img src="man/figures/rtools44_b.png" width="700px">
 
 After installing `Rtools44`, restart RStudio and run the installation
 again.
