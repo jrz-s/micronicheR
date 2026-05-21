@@ -81,6 +81,10 @@ After clicking the link, follow the steps below:
 After installing `Rtools44`, restart RStudio and run the installation
 again.
 
+``` r
+.rs.restartR()
+```
+
 ## Install NicheMapR Global Climate Data
 
 Run the following command once before using `microniche()`:
@@ -89,7 +93,7 @@ Run the following command once before using `microniche()`:
 micronicheR::microniche_setup_global_climate(folder = getwd())
 ```
 
-Important: Restart session in R!
+**Important:** Restart session in R!
 
 ``` r
 .rs.restartR()
