@@ -52,9 +52,9 @@ which is required by `micronicheR`.
 micronicheR::microniche_setup(github = "mrke/NicheMapR")
 ```
 
-**Note for Windows users**
+\< span style = ‘color:red’\>**Note for Windows users**</span>
 
-On some Windows systems, installing `NicheMapR` may require Rtools44
+On some Windows systems, installing `NicheMapR` may require `Rtools44`
 because the package contains compiled Fortran code.
 
 If you see errors related to:
