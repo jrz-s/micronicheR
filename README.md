@@ -41,7 +41,6 @@ remotes::install_github(
 
 ``` r
 library(micronicheR)
-library(terra)
 ```
 
 ## Install `NicheMapR`
@@ -52,6 +51,25 @@ which is required by `micronicheR`.
 ``` r
 micronicheR::microniche_setup(github = "mrke/NicheMapR")
 ```
+
+**Note for Windows users**
+
+On some Windows systems, installing `NicheMapR` may require Rtools44
+because the package contains compiled Fortran code.
+
+If you see errors related to:
+
+- `gfortran`
+- `Rtools`
+- `compilation failed`
+- `make: gfortran: No such file or directory`
+
+Install `Rtools44` from:
+
+[install Rtools44](https://cran.r-project.org/bin/windows/Rtools/)
+
+After installing `Rtools44`, restart RStudio and run the installation
+again.
 
 ## Install NicheMapR Global Climate Data
 
@@ -270,8 +288,25 @@ Downloading these data may require a stable internet connection and can
 occasionally fail due to timeout, interrupted downloads, GitHub
 availability, or local permission issues.
 
-Before running `microniche()` for the first time, users should download
-and register the required global climate data:
+On some Windows systems, installing `NicheMapR` may require `Rtools44`
+because the package contains compiled Fortran code.
+
+If you see errors related to:
+
+- `gfortran`
+- `Rtools`
+- `compilation failed`
+- `make: gfortran: No such file or directory`
+
+install `Rtools44` from:
+
+[Install Rtools44](https://cran.r-project.org/bin/windows/Rtools/)
+
+After installing `Rtools44`, restart RStudio and run the installation
+again.
+
+Before running `micronicheR::microniche()` for the first time, users
+should download and register the required global climate data:
 
 ``` r
 micronicheR::microniche_setup_global_climate(folder = getwd())
