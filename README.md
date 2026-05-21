@@ -70,7 +70,9 @@ Install `Rtools44` from:
 
 After clicking the link, follow the steps below:
 
-**Step 01** <img src="man/figures/rtools44_a.png" width="700px">
+**Step 01**
+
+<img src="man/figures/rtools44_a.png" width="700px">
 
 **Step 02**
 
