@@ -61,7 +61,23 @@ Run the following command once before using `microniche()`:
 micronicheR::microniche_setup_global_climate(folder = getwd())
 ```
 
-## Example datasets
+Important! Restart session in R
+
+``` r
+.rs.restartR()
+```
+
+## Let’s start here!
+
+## Load packages
+
+``` r
+library(micronicheR)
+library(terra)
+library(NicheMapR)
+```
+
+### Example datasets
 
 The package contains example rasters, coordinates, and species traits.
 Check the sample data from the package `microniche`.
@@ -103,7 +119,7 @@ elev <- terra::rast(
 
 study <- terra::rast(
   system.file(
-      "extdata",
+      "extdata"
     , "study_example.tif"
     , package = "micronicheR"
   )
@@ -276,6 +292,10 @@ Paulo State University (UNESP), São Paulo, Brazil
 
 Rubalcaba, Juan G., PhD<br> Ramón Y Cajal Researcher<br> Pyrenean
 Institute of Ecology, Huesca, Spain
+
+Oliveira, Eduardo Vinícius da Silva, PhD<br> Professor, Department of
+Ecology<br> Federal University of Sergipe, São Cristóvão, Sergipe,
+Brazil
 
 Gouveia, Sidney Feitosa, PhD<br> Professor, Department of Ecology<br>
 Federal University of Sergipe, São Cristóvão, Sergipe, Brazil
