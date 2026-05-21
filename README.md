@@ -61,7 +61,7 @@ Run the following command once before using `microniche()`:
 micronicheR::microniche_setup_global_climate(folder = getwd())
 ```
 
-Important! Restart session in R
+Important: Restart session in R!
 
 ``` r
 .rs.restartR()
