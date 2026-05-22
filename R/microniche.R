@@ -528,9 +528,24 @@ microniche <- function(
         # ------------------------------------------------------------------
         # Extract results using the same logic as the original function
 
-        qgens <- sapply(mod.t, function(m) m$enbal[, 8])
-        evap  <- sapply(mod.t, function(m) m$masbal[, 3:4])
-        evap <- colSums(evap)
+        qgens <- vapply(
+          mod.t,
+          function(m) {
+            as.numeric(m$enbal[1, "ENB"])
+          },
+          numeric(1)
+        )
+
+        evap <- vapply(
+          mod.t,
+          function(m) {
+            sum(
+              as.numeric(m$masbal[1, c("H2OResp_g", "H2OCut_g")]),
+              na.rm = TRUE
+            )
+          },
+          numeric(1)
+        )
 
         names(qgens) <- NULL
         names(evap) <- NULL
@@ -723,7 +738,13 @@ microniche <- function(
     stop(
       "Package 'NicheMapR' is required.\n",
       "Please install it with:\n",
-      "microniche_setup(github = 'mrke/NicheMapR')"
+      "micronicheR::microniche_setup(github = 'mrke/NicheMapR')"
+    )
+  }
+
+  if (!"package:NicheMapR" %in% search()) {
+    suppressPackageStartupMessages(
+      require("NicheMapR", character.only = TRUE)
     )
   }
 
