@@ -24,6 +24,17 @@ shown in the figure below:
 
 ## Install `micronicheR`
 
+If a previous version of `micronicheR` is already installed, detach and
+remove it first:
+
+``` r
+try(detach("package:micronicheR", unload = TRUE), silent = TRUE)
+
+remove.packages("micronicheR")
+```
+
+Then install the latest GitHub version:
+
 ``` r
 install.packages("remotes")
 
@@ -290,6 +301,32 @@ head(out_summary)
 
 Returns daily summaries by species and pixel.
 
+## Run large simulations using `break_n`
+
+## Run large simulations using `break_n`
+
+For large spatial simulations, users can split the input data frame into
+smaller blocks using the `break_n` argument.
+
+This reduces memory usage and improves stability for large runs
+involving thousands of pixels or coordinates.
+
+For example:
+
+``` r
+out_break <- micronicheR::microniche(
+    rcover = cover
+  , rtop = elev
+  , rast_or_coord = study
+  , traits_df = traits
+  , sample_n = 1000
+  , break_n = 250
+  , list_format = FALSE
+)
+
+head(out_break)
+```
+
 ## Disclaimer
 
 `micronicheR` is currently under active development and should be
@@ -324,6 +361,24 @@ should download and register the required global climate data:
 
 ``` r
 micronicheR::microniche_setup_global_climate(folder = getwd())
+```
+
+**Importart!** For large simulations involving more than or equal to
+thousands of pixels or coordinates, users are encouraged to use the
+break_n argument to split computations into smaller processing blocks.
+This may improve computational stability, reduce memory usage, and help
+prevent crashes during long simulations.
+
+``` r
+
+out_break <- micronicheR::microniche(
+    rcover = cover
+  , rtop = elev
+  , rast_or_coord = study
+  , traits_df = traits
+  , sample_n = 2000
+  , break_n = 500
+  , list_format = FALSE
 ```
 
 ## Author(s)

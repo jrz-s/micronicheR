@@ -91,6 +91,7 @@
 #' @param RESPIRE Numeric. Indicates whether respiration and associated heat loss are calculated.
 #' @param TREGMODE Numeric. Thermoregulation mode.
 #' @param WRITE_INPUT Numeric. Argument passed to `NicheMapR::endoR()` controlling whether input is written.
+#' @param break_n Numeric or NULL. Optional chunk size used to split large pixel/location data frames into smaller blocks before running the microclimate and physiological models. If NULL, all pixels are processed at once. For example, `break_n = 500` processes the input in blocks of up to 500 pixels.
 #' @param list_format Logical. If TRUE, returns a nested list by species, energy balance, evaporation, and pixel. If FALSE, returns a tidy data frame.
 #' @param summary Logical. If TRUE and `list_format = FALSE`, returns a daily summary by species and pixel.
 #' @return If `list_format = TRUE`, a nested list with one element per species, each containing `energy` and `evap` lists by pixel. If `list_format = FALSE`, a data frame with species, pixel coordinates, day, time, air temperature, energy balance, and mass balance. If `summary = TRUE`, returns daily summary statistics.
@@ -243,6 +244,8 @@ microniche <- function(
 
   , list_format = TRUE
   , summary = FALSE
+  , break_n = NULL
+
 ){ # start
 
   # Install NicheMapR dependencies
@@ -291,6 +294,17 @@ microniche <- function(
 
   if (!is.null(sample_frac)) {
     df <- dplyr::slice_sample(df, prop = sample_frac)
+  }
+
+  # Optional chunking for large runs (28/05/2026)
+
+  if (!is.null(break_n)) {
+
+    if (!is.numeric(break_n) || length(break_n) != 1 || break_n < 1) {
+      stop("'break_n' must be NULL or a single positive integer.")
+    }
+
+    break_n <- as.integer(break_n)
   }
 
   # ================================================================
@@ -577,9 +591,60 @@ microniche <- function(
     return(niche_list)
   }
 
+  # ================================================================
+  # 3. INTERNAL FUNCTION: merge_niche_lists()
+  # ------------------------------------------------
+  # This internal function combines the outputs generated when
+  # microniche() is run in blocks using the break_n argument.
+  #
+  # Input:
+  #   niche_chunks = a list where each element corresponds to one
+  #                  processed block of pixels/locations.
+  #
+  # Each block contains the same hierarchical structure returned by
+  # endo_by_species():
+  #
+  #   species
+  #     energy
+  #     evap
+  #
+  # Output:
+  #   merged, a single hierarchical list containing all species and
+  #   all pixels from all processed blocks.
+  #
+  # Important:
+  #   This function does NOT run any model.
+  #   It only joins the results produced by previous block-level runs.
+  #
+  #   The order of pixels is preserved because the blocks are processed
+  #   sequentially from the original df.
+  # ================================================================
+
+  merge_niche_lists <- function(niche_chunks) {
+
+    sp_names <- unique(unlist(lapply(niche_chunks, names)))
+
+    merged <- list()
+
+    for (sp in sp_names) {
+
+      merged[[sp]] <- list(
+        energy = unlist(
+          lapply(niche_chunks, function(x) x[[sp]]$energy),
+          recursive = FALSE
+        ),
+        evap = unlist(
+          lapply(niche_chunks, function(x) x[[sp]]$evap),
+          recursive = FALSE
+        )
+      )
+    }
+
+    return(merged)
+  }
 
   # ================================================================
-  # 3. MAIN FLOW OF microniche()
+  # 4. MAIN FLOW OF microniche()
   # ------------------------------------------------
   # From this point onward, the main workflow of the
   # function begins.
@@ -588,7 +653,7 @@ microniche <- function(
   # defined, but they have not been executed yet.
   # ================================================================
 
-  # 3.1. Check global climate data
+  # 4.1. Check global climate data
 
   gcfolder_file <- file.path(.libPaths()[1], "gcfolder.rda")
 
@@ -597,7 +662,7 @@ microniche <- function(
     stop(
       "NicheMapR global climate data were not found.\n\n",
       "Please run this once before using microniche():\n\n",
-      "microniche_setup_global_climate(folder = getwd())\n\n",
+      "micronicheR::microniche_setup_global_climate(folder = getwd())\n\n",
       "After the download finishes, restart R and run microniche() again."
     )
 
@@ -609,7 +674,7 @@ microniche <- function(
 
   }
 
-  # 3.2. If traits_df is not provided, create a default species
+  # 4.2. If traits_df is not provided, create a default species
   # Here the original behavior of microniche() is preserved.
 
   if (is.null(traits_df)) {
@@ -731,7 +796,7 @@ microniche <- function(
     message("traits_df provided. Running microniche for multiple species.")
   }
 
-  # 3.3. Run microclimate only once per pixel
+  # 4.3. Run microclimate only once per pixel
   # The internal function micro_by_pixel() is called here.
 
   if (!requireNamespace("NicheMapR", quietly = TRUE)) {
@@ -748,18 +813,59 @@ microniche <- function(
     )
   }
 
-  micro_pixels <- micro_by_pixel(df = df)
-
-  # 3.4. Run the physiological model for each species
+  # 4.4. Run the physiological model for each species
   # The internal function endo_by_species() is called here.
 
-  niche_list <- endo_by_species(
-    micro_pixels = micro_pixels
-    , traits_df = traits_df
-  )
+  if (is.null(break_n)) {
+
+    micro_pixels <- micro_by_pixel(df = df)
+
+    niche_list <- endo_by_species(
+      micro_pixels = micro_pixels,
+      traits_df = traits_df
+    )
+
+  } else {
+
+    df_chunks <- split(
+      df,
+      ceiling(seq_len(nrow(df)) / break_n)
+    )
+
+    message(
+      "Running microniche in ",
+      length(df_chunks),
+      " block(s) of up to ",
+      break_n,
+      " pixel(s)."
+    )
+
+    niche_chunks <- vector("list", length(df_chunks))
+
+    for (b in seq_along(df_chunks)) {
+
+      message(
+        "Running block ",
+        b,
+        " of ",
+        length(df_chunks),
+        " | pixels: ",
+        nrow(df_chunks[[b]])
+      )
+
+      micro_pixels <- micro_by_pixel(df = df_chunks[[b]])
+
+      niche_chunks[[b]] <- endo_by_species(
+        micro_pixels = micro_pixels,
+        traits_df = traits_df
+      )
+    }
+
+    niche_list <- merge_niche_lists(niche_chunks)
+  }
 
 
-  # 3.5. Control the three output formats
+  # 4.5. Control the three output formats
 
   if(list_format == TRUE){
 

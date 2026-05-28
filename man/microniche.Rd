@@ -88,7 +88,8 @@ microniche(
   TREGMODE = 1,
   WRITE_INPUT = 0,
   list_format = TRUE,
-  summary = FALSE
+  summary = FALSE,
+  break_n = NULL
 )
 }
 \arguments{
@@ -259,6 +260,8 @@ microniche(
 \item{list_format}{Logical. If TRUE, returns a nested list by species, energy balance, evaporation, and pixel. If FALSE, returns a tidy data frame.}
 
 \item{summary}{Logical. If TRUE and \code{list_format = FALSE}, returns a daily summary by species and pixel.}
+
+\item{break_n}{Numeric or NULL. Optional chunk size used to split large pixel/location data frames into smaller blocks before running the microclimate and physiological models. If NULL, all pixels are processed at once. For example, \code{break_n = 500} processes the input in blocks of up to 500 pixels.}
 }
 \value{
 If \code{list_format = TRUE}, a nested list with one element per species, each containing \code{energy} and \code{evap} lists by pixel. If \code{list_format = FALSE}, a data frame with species, pixel coordinates, day, time, air temperature, energy balance, and mass balance. If \code{summary = TRUE}, returns daily summary statistics.
