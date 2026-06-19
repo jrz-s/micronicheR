@@ -127,7 +127,6 @@ micronicheR::microniche_setup_global_climate(folder = getwd())
 
 library(micronicheR)
 library(terra)
-library(NicheMapR)
 
 ```
 
@@ -324,41 +323,130 @@ head(out_summary)
 
 Returns daily summaries by species and pixel.
 
-## Run large simulations using `break_n`
+## Long simulations and checkpoint recovery 
 
-## Run large simulations using `break_n`
+### `break_n` argument
 
-For large spatial simulations, users can split the input data frame into smaller blocks using the `break_n` argument.
-
-This reduces memory usage and improves stability for large runs involving thousands of pixels or coordinates.
-
-For example:
+Divides the study area into blocks of pixels.
 
 ```{r eval=FALSE}
-
 out_break <- micronicheR::microniche(
     rcover = cover
   , rtop = elev
   , rast_or_coord = study
   , traits_df = traits
-  , sample_n = 1000
-  , break_n = 250
-  , list_format = FALSE
-)
+  , break_n = 100)
 
 head(out_break)
 
 ```
 
+In this example, pixels are processed in blocks of 100 locations.
+
+### `checkpoint_dir` argument
+
+Defines a directory where intermediate results are stored.
+
+```{r eval=FALSE}
+
+out_break_stored <- micronicheR::microniche( 
+    rcover = cover 
+  , rtop = elev 
+  , rast_or_coord = study 
+  , traits_df = traits 
+  , break_n = 100 
+  , checkpoint_dir = "checkpoint_run" )
+
+head(out_break_stored)
+
+```
+
+For each processed block, micronicheR saves:
+
+- microclimate simulations (``micro_global`)
+- physiological simulations (`endoR`)
+
+### `resume` argument
+
+Controls whether previously saved checkpoints should be reused.
+
+```{r eval=FALSE}
+
+out_break_stored_resume <- micronicheR::microniche(
+    rcover = cover
+  , rtop = elev
+  , rast_or_coord = study
+  , traits_df = traits
+  , break_n = 100
+  , checkpoint_dir = "checkpoint_run"
+  , resume = TRUE )
+
+head(out_break_stored_resume)
+
+```
+
+When `resume = TRUE`, previously completed blocks are loaded automatically and are not recalculated.
+
+This allows interrupted simulations to continue from the last completed block instead of restarting from the beginning.
+
+**Example workflow**
+
+```{r eval=FALSE}
+
+out_apply <- micronicheR::microniche(
+    rcover = cover
+  , rtop = elev
+  , rast_or_coord = study
+  , traits_df = traits
+  , break_n = 100
+  , checkpoint_dir = "checkpoint_run")
+
+head(out_apply)
+
+```
+
+If the simulation is interrupted, simply run the same command again:
+
+```{r eval=FALSE}
+
+out_apply <- micronicheR::microniche(
+    rcover = cover
+  , rtop = elev
+  , rast_or_coord = study
+  , traits_df = traits
+  , break_n = 100
+  , checkpoint_dir = "checkpoint_run"
+  , resume = TRUE)
+
+head(out_apply)
+
+```
+
+Previously completed blocks will be reused automatically.
+
+## Remove checkpoint files
+
+Checkpoint files can occupy considerable disk space in large simulations.
+
+If checkpoint files are no longer needed, they can be removed using:
+
+```{r eval=FALSE}
+micronicheR::checkpoint_remove(
+  checkpoint_dir = "checkpoint_run")
+
+```
+
+This permanently removes all saved checkpoint files generated during previous simulations.
+
 ## Disclaimer
 
-`micronicheR` is currently under active development and should be considered experimental software. Functions, arguments, outputs, and workflows may change in future versions.
+`micronicheR` is currently under active development and should be considered experimental software. Functions, arguments, outputs, and workflows may change in future releases as new features are implemented and existing functionalities are improved.
 
-Some functions rely on external resources from `NicheMapR`, especially the global climate database required by `NicheMapR::micro_global()`. Downloading these data may require a stable internet connection and can occasionally fail due to timeout, interrupted downloads, GitHub availability, or local permission issues.
+Several functions depend on external resources provided by NicheMapR, particularly the global climate database required by NicheMapR::micro_global(). Downloading these data requires a stable internet connection and may occasionally fail due to interrupted downloads, network timeouts, GitHub availability, server-side issues, or local permission restrictions.
 
-On some Windows systems, installing `NicheMapR` may require `Rtools44` because the package contains compiled Fortran code.
+On some Windows systems, installing NicheMapR may require Rtools44 because the package includes compiled Fortran code.
 
-If you see errors related to:
+If you encounter installation errors related to:
 
 - `gfortran`
 - `Rtools`
@@ -377,11 +465,11 @@ Before running `micronicheR::microniche()` for the first time, users should down
 micronicheR::microniche_setup_global_climate(folder = getwd())
 
 ```
-**Importart!**
-For large simulations involving more than or equal to thousands of pixels or coordinates, users are encouraged to use the break_n argument to split computations into smaller processing blocks. This may improve computational stability, reduce memory usage, and help prevent crashes during long simulations.
+**Long simulations**
+
+For large simulations involving thousands of pixels, coordinates, or multiple species, users are strongly encouraged to use the break_n argument to divide computations into smaller processing blocks. This strategy can improve computational stability, reduce memory consumption, and minimize the risk of losing progress due to unexpected interruptions during long simulations.
 
 ```r
-
 out_break <- micronicheR::microniche(
     rcover = cover
   , rtop = elev
@@ -392,6 +480,37 @@ out_break <- micronicheR::microniche(
   , list_format = FALSE
 
 ```
+
+**Checkpoint and resume system**
+
+When `checkpoint_dir` is provided, `micronicheR` automatically stores intermediate outputs generated by both `micro_global()` and `endoR()`. These checkpoints can be reused in future sessions by setting `resume = TRUE`, allowing interrupted simulations to continue from the last completed processing block rather than restarting from the beginning.
+
+This feature is particularly useful for computationally intensive analyses that may run for several hours or days.
+
+```r
+out_checkpoint <- micronicheR::microniche(
+    rcover = cover
+  , rtop = elev 
+  , rast_or_coord = study
+  , traits_df = traits
+  , break_n = 500
+  , checkpoint_dir = "checkpoint_run"
+  , resume = TRUE )
+
+```
+
+**Checkpoint storage**
+
+Checkpoint files generated during large simulations may occupy substantial disk space depending on the number of pixels, species, simulation duration, and output complexity. Once these files are no longer needed, they can be safely removed using:
+
+```r
+micronicheR::checkpoint_remove(checkpoint_dir = "checkpoint_run")
+
+```
+This command permanently removes all checkpoint files stored in the specified directory.
+
+The checkpoint system was designed to improve robustness and reproducibility in long-running simulations, particularly when working with large spatial datasets and multiple species.
+
 ## Author(s)
 
 Zárate-Salazar, J. Rafael, PhD<br>

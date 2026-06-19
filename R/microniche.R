@@ -94,6 +94,14 @@
 #' @param break_n Numeric or NULL. Optional chunk size used to split large pixel/location data frames into smaller blocks before running the microclimate and physiological models. If NULL, all pixels are processed at once. For example, `break_n = 500` processes the input in blocks of up to 500 pixels.
 #' @param list_format Logical. If TRUE, returns a nested list by species, energy balance, evaporation, and pixel. If FALSE, returns a tidy data frame.
 #' @param summary Logical. If TRUE and `list_format = FALSE`, returns a daily summary by species and pixel.
+#' @param checkpoint_dir
+#' Character. Directory used to store checkpoint files generated
+#' during long simulations. If NULL (default), checkpoint files
+#' are not created.
+#' @param resume
+#' Logical. If TRUE and checkpoint files already exist,
+#' previously completed blocks are loaded and skipped.
+#' Default is TRUE.
 #' @return If `list_format = TRUE`, a nested list with one element per species, each containing `energy` and `evap` lists by pixel. If `list_format = FALSE`, a data frame with species, pixel coordinates, day, time, air temperature, energy balance, and mass balance. If `summary = TRUE`, returns daily summary statistics.
 #' @examples
 #' \dontrun{
@@ -123,7 +131,7 @@ microniche <- function(
   # ----------------------- #
 
   # Coverage raster
-    rcover = NULL
+  rcover = NULL
   # topographic raster
   , rtop = NULL
   # Raster or coordinates of the study
@@ -246,6 +254,9 @@ microniche <- function(
   , summary = FALSE
   , break_n = NULL
 
+  , checkpoint_dir = NULL
+  , resume = TRUE
+
 ){ # start
 
   # Install NicheMapR dependencies
@@ -268,7 +279,7 @@ microniche <- function(
   # ================================================================
 
   df <- rast_to_df(
-      rcover = rcover
+    rcover = rcover
     , rtop = rtop
     , rast_or_coord = rast_or_coord
     , method_cover = method_cover
@@ -305,6 +316,38 @@ microniche <- function(
     }
 
     break_n <- as.integer(break_n)
+
+    # =====================================================================
+    # >>> V2 CHECKPOINT SYSTEM (BEGIN)
+    # =====================================================================
+
+    if (!is.null(checkpoint_dir)) {
+
+      message(
+        "Checkpoint directory: ",
+        normalizePath(
+          checkpoint_dir,
+          winslash = "/",
+          mustWork = FALSE
+        )
+      )
+
+      if (!dir.exists(checkpoint_dir)) {
+
+        dir.create(
+          checkpoint_dir,
+          recursive = TRUE,
+          showWarnings = FALSE
+        )
+
+      }
+
+    }
+
+    # =====================================================================
+    # >>> V2 CHECKPOINT SYSTEM (END)
+    # =====================================================================
+
   }
 
   # ================================================================
@@ -807,7 +850,13 @@ microniche <- function(
     )
   }
 
+  # Note:
+  # NicheMapR must be attached because micro_global()
+  # requires internal objects (e.g. "CampNormTbl9_1")
+  # that are not available through requireNamespace() alone.
+
   if (!"package:NicheMapR" %in% search()) {
+
     suppressPackageStartupMessages(
       require("NicheMapR", character.only = TRUE)
     )
@@ -842,6 +891,10 @@ microniche <- function(
 
     niche_chunks <- vector("list", length(df_chunks))
 
+    # =====================================================================
+    # >>> V2 CHECKPOINT SYSTEM (BEGIN) 19.06.2026
+    # =====================================================================
+
     for (b in seq_along(df_chunks)) {
 
       message(
@@ -853,17 +906,115 @@ microniche <- function(
         nrow(df_chunks[[b]])
       )
 
-      micro_pixels <- micro_by_pixel(df = df_chunks[[b]])
+      micro_file <- NULL
+      endo_file  <- NULL
 
-      niche_chunks[[b]] <- endo_by_species(
-        micro_pixels = micro_pixels,
-        traits_df = traits_df
-      )
+      if (!is.null(checkpoint_dir)) {
+
+        micro_file <- file.path(
+          checkpoint_dir,
+          paste0(
+            "micro_block_",
+            sprintf("%04d", b),
+            ".rds"
+          )
+        )
+
+        endo_file <- file.path(
+          checkpoint_dir,
+          paste0(
+            "endo_block_",
+            sprintf("%04d", b),
+            ".rds"
+          )
+        )
+
+      }
+
+      # ------------------------------------------------------------
+      # MICROCLIMATE
+      # ------------------------------------------------------------
+
+      if (
+        resume &&
+        !is.null(micro_file) &&
+        file.exists(micro_file)
+      ) {
+
+        message(
+          "Loading saved microclimate block ",
+          b
+        )
+
+        micro_pixels <- readRDS(micro_file)
+
+      } else {
+
+        micro_pixels <- micro_by_pixel(
+          df = df_chunks[[b]]
+        )
+
+        if (!is.null(micro_file)) {
+
+          message("Saving microclimate block ", b)
+
+          saveRDS(
+            micro_pixels,
+            micro_file
+          )
+
+        }
+
+      }
+
+      # ------------------------------------------------------------
+      # ENDOR
+      # ------------------------------------------------------------
+
+      if (
+        resume &&
+        !is.null(endo_file) &&
+        file.exists(endo_file)
+      ) {
+
+        message(
+          "Loading saved endoR block ",
+          b
+        )
+
+        niche_chunks[[b]] <- readRDS(
+          endo_file
+        )
+
+      } else {
+
+        niche_chunks[[b]] <- endo_by_species(
+          micro_pixels = micro_pixels,
+          traits_df = traits_df
+        )
+
+        if (!is.null(endo_file)) {
+
+          message("Saving endoR block ", b)
+
+          saveRDS(
+            niche_chunks[[b]],
+            endo_file
+          )
+
+        }
+
+      }
+
     }
 
-    niche_list <- merge_niche_lists(niche_chunks)
-  }
+    # =====================================================================
+    # >>> V2 CHECKPOINT SYSTEM (END)
+    # =====================================================================
 
+    niche_list <- merge_niche_lists(niche_chunks)
+
+  }
 
   # 4.5. Control the three output formats
 

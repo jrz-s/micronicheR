@@ -89,7 +89,9 @@ microniche(
   WRITE_INPUT = 0,
   list_format = TRUE,
   summary = FALSE,
-  break_n = NULL
+  break_n = NULL,
+  checkpoint_dir = NULL,
+  resume = TRUE
 )
 }
 \arguments{
@@ -262,6 +264,14 @@ microniche(
 \item{summary}{Logical. If TRUE and \code{list_format = FALSE}, returns a daily summary by species and pixel.}
 
 \item{break_n}{Numeric or NULL. Optional chunk size used to split large pixel/location data frames into smaller blocks before running the microclimate and physiological models. If NULL, all pixels are processed at once. For example, \code{break_n = 500} processes the input in blocks of up to 500 pixels.}
+
+\item{checkpoint_dir}{Character. Directory used to store checkpoint files generated
+during long simulations. If NULL (default), checkpoint files
+are not created.}
+
+\item{resume}{Logical. If TRUE and checkpoint files already exist,
+previously completed blocks are loaded and skipped.
+Default is TRUE.}
 }
 \value{
 If \code{list_format = TRUE}, a nested list with one element per species, each containing \code{energy} and \code{evap} lists by pixel. If \code{list_format = FALSE}, a data frame with species, pixel coordinates, day, time, air temperature, energy balance, and mass balance. If \code{summary = TRUE}, returns daily summary statistics.
