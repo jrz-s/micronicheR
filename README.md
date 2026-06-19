@@ -110,7 +110,7 @@ micronicheR::microniche_setup_global_climate(folder = getwd())
 .rs.restartR()
 ```
 
-## Let’s start here!
+## 🚀 Let’s start here!
 
 ## Load packages
 
