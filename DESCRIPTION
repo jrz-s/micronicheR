@@ -1,16 +1,20 @@
 Package: micronicheR
 Type: Package
 Title: Microclimate-Based Physiological Niche Modeling
-Version: 0.1.0
+Version: 0.2.0
 Authors@R: 
     person(
-      given = "J. Rafael",
+      given = "Jhonatan Rafael",
       family = "Zárate-Salazar",
       role = c("aut", "cre"),
       email = "rzaratesalazar@gmail.com"
     )
 Description: Tools for microclimate-based physiological niche modeling
-    using environmental rasters, species traits, and NicheMapR.
+    using environmental rasters, species traits, and 'NicheMapR'.
+    The package provides an extensible framework for integrating
+    microclimate simulations with mechanistic niche models,
+    currently supporting endotherm applications and designed for
+    future extension to ectotherm modeling.
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true

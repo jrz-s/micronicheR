@@ -43,7 +43,7 @@ Convert rasters or coordinates into a pixel-level data frame
 }
 \examples{
 \dontrun{
-df <- rast_to_df(
+df <- micronicheR::rast_to_df(
   rcover = cover_raster,
   rtop = elevation_raster,
   rast_or_coord = study_raster,

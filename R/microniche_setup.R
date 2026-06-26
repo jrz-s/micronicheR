@@ -1,7 +1,7 @@
-#' Install and load required packages for microniche
+#' Install and load required packages for micronicheR
 #'
-#' @title Install and load microniche dependencies
-#' @description Checks, installs, and loads CRAN and GitHub packages required by the microniche package workflow. This function is especially useful for automatically installing `NicheMapR` from GitHub when it is not available locally.
+#' @title Install and load micronicheR dependencies
+#' @description #' Checks, installs, and loads the packages required by the micronicheR workflow.
 #' @author
 #' \itemize{
 #'   \item Zárate-Salazar, J. Rafael, PhD

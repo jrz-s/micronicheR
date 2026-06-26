@@ -1,7 +1,7 @@
 #' Remove micronicheR checkpoint files
 #'
 #' Deletes a checkpoint directory created by
-#' \code{\link{microniche}}.
+#' \code{\link{endonicheR}}.
 #'
 #' @param checkpoint_dir Character. Path to the checkpoint directory.
 #'

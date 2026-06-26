@@ -16,7 +16,7 @@
 #' @return If `return = "data"`, a data frame with pixel ID, longitude (`x`), latitude (`y`), vegetation cover (`cov`), and elevation (`elv`). If `return = "rasters"`, a list of processed rasters. If `return = "both"`, a list containing processed rasters, the data frame, and CRS information.
 #' @examples
 #' \dontrun{
-#' df <- rast_to_df(
+#' df <- micronicheR::rast_to_df(
 #'   rcover = cover_raster,
 #'   rtop = elevation_raster,
 #'   rast_or_coord = study_raster,

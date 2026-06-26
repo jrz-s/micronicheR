@@ -1,6 +1,6 @@
-#' Run microclimate-based physiological niche simulations
+#' Run microclimate-based endotherm physiological niche simulations
 #' @title Microclimate-based physiological niche modeling
-#' @description Runs microclimate and physiological niche simulations for one or more species. The function first converts raster or coordinate inputs into a pixel-level environmental data frame using `rast_to_df()`, then runs `NicheMapR::micro_global()` once per pixel and reuses the resulting microclimate for all species in `traits_df`.
+#' @description Runs microclimate and endotherm physiological niche simulations for one or more species. The function first converts raster or coordinate inputs into a pixel-level environmental data frame using `rast_to_df()`, then runs `NicheMapR::micro_global()` once per pixel and reuses the resulting microclimate for all species in `traits_df`.
 #' @author
 #' \itemize{
 #'   \item Zárate-Salazar, J. Rafael, PhD
@@ -105,7 +105,7 @@
 #' @return If `list_format = TRUE`, a nested list with one element per species, each containing `energy` and `evap` lists by pixel. If `list_format = FALSE`, a data frame with species, pixel coordinates, day, time, air temperature, energy balance, and mass balance. If `summary = TRUE`, returns daily summary statistics.
 #' @examples
 #' \dontrun{
-#' out <- microniche(
+#' out <- micronicheR::endonicheR(
 #'   rcover = cover_raster,
 #'   rtop = elevation_raster,
 #'   rast_or_coord = study_raster,
@@ -124,7 +124,7 @@
 #' @importFrom stats sd
 #' @importFrom rlang .data
 #' @export
-microniche <- function(
+endonicheR <- function(
 
   # ----------------------- #
   # Inputs provided by the researcher
@@ -275,7 +275,7 @@ microniche <- function(
   # ------------------------------------------------
   # This step calls the external raster_to_df() function to transform
   # cover, elevation, and study rasters or coordinates into the input
-  # data frame used internally by microniche().
+  # data frame used internally by endonicheR().
   # ================================================================
 
   df <- rast_to_df(
@@ -365,7 +365,7 @@ microniche <- function(
   #
   # Important:
   #   The user does NOT need to run micro_by_pixel()
-  #   outside microniche().
+  #   outside endonicheR().
   #   It exists only to organize the internal workflow
   #   of the function.
   # ================================================================
@@ -638,7 +638,7 @@ microniche <- function(
   # 3. INTERNAL FUNCTION: merge_niche_lists()
   # ------------------------------------------------
   # This internal function combines the outputs generated when
-  # microniche() is run in blocks using the break_n argument.
+  # endonicheR() is run in blocks using the break_n argument.
   #
   # Input:
   #   niche_chunks = a list where each element corresponds to one
@@ -687,7 +687,7 @@ microniche <- function(
   }
 
   # ================================================================
-  # 4. MAIN FLOW OF microniche()
+  # 4. MAIN FLOW OF endonicheR()
   # ------------------------------------------------
   # From this point onward, the main workflow of the
   # function begins.
@@ -704,9 +704,9 @@ microniche <- function(
 
     stop(
       "NicheMapR global climate data were not found.\n\n",
-      "Please run this once before using microniche():\n\n",
+      "Please run this once before using endonicheR():\n\n",
       "micronicheR::microniche_setup_global_climate(folder = getwd())\n\n",
-      "After the download finishes, restart R and run microniche() again."
+      "After the download finishes, restart R and run endonicheR() again."
     )
 
   } else {
@@ -718,7 +718,7 @@ microniche <- function(
   }
 
   # 4.2. If traits_df is not provided, create a default species
-  # Here the original behavior of microniche() is preserved.
+  # Default single-species behavior.
 
   if (is.null(traits_df)) {
 
@@ -836,7 +836,7 @@ microniche <- function(
 
   } else {
 
-    message("traits_df provided. Running microniche for multiple species.")
+    message("traits_df provided. Running endotherm simulations for multiple species.")
   }
 
   # 4.3. Run microclimate only once per pixel
@@ -882,7 +882,7 @@ microniche <- function(
     )
 
     message(
-      "Running microniche in ",
+      "Running endonicheR in ",
       length(df_chunks),
       " block(s) of up to ",
       break_n,
@@ -968,7 +968,7 @@ microniche <- function(
       }
 
       # ------------------------------------------------------------
-      # ENDOR
+      # ENDOR SIMULATION
       # ------------------------------------------------------------
 
       if (

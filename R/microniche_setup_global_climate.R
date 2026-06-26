@@ -36,7 +36,7 @@ microniche_setup_global_climate <- function(
 
   message(
     "\nGlobal climate data setup finished.\n",
-    "Please restart R before running microniche() for the first time."
+    "Please restart R before running endonicheR() for the first time."
   )
 
   invisible(TRUE)

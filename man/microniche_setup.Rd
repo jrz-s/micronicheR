@@ -2,7 +2,7 @@
 % Please edit documentation in R/microniche_setup.R
 \name{microniche_setup}
 \alias{microniche_setup}
-\title{Install and load microniche dependencies}
+\title{Install and load micronicheR dependencies}
 \usage{
 microniche_setup(cran = NULL, github = NULL)
 }
@@ -15,10 +15,10 @@ microniche_setup(cran = NULL, github = NULL)
 Invisibly returns a list of loaded packages.
 }
 \description{
-Checks, installs, and loads CRAN and GitHub packages required by the microniche package workflow. This function is especially useful for automatically installing \code{NicheMapR} from GitHub when it is not available locally.
+#' Checks, installs, and loads the packages required by the micronicheR workflow.
 }
 \details{
-Install and load required packages for microniche
+Install and load required packages for micronicheR
 }
 \examples{
 \dontrun{

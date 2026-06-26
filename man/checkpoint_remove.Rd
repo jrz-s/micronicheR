@@ -14,7 +14,7 @@ Invisibly returns TRUE if the directory was removed.
 }
 \description{
 Deletes a checkpoint directory created by
-\code{\link{microniche}}.
+\code{\link{endonicheR}}.
 }
 \examples{
 \dontrun{
