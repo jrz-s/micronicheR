@@ -28,14 +28,14 @@
 #' @importFrom stats complete.cases
 #' @export
 rast_to_df <- function(
-    rcover
+      rcover
     , rtop
     , rast_or_coord
-    , method_cover = "near"
-    , method_top = "bilinear"
-    , return = "both"
-    , use_disk = FALSE
-    , resample_res = NULL
+    , method_cover   = "near"
+    , method_top     = "bilinear"
+    , return         = "both"
+    , use_disk       = FALSE
+    , resample_res   = NULL
 ) {
 
   # -------------------------------
@@ -81,7 +81,7 @@ rast_to_df <- function(
     coords <- as.data.frame(rast_or_coord)
 
     if (ncol(coords) < 2) {
-      stop("A matrix de coordenadas deve ter pelo menos duas colunas (x, y).")
+      stop("The coordinate matrix must have at least two columns (x, y).")
     }
 
     names(coords)[1:2] <- c("x", "y")
@@ -123,9 +123,9 @@ rast_to_df <- function(
       if (is.null(res_target)) return(r)
 
       r_template <- terra::rast(
-        extent = terra::ext(r),
-        resolution = res_target,
-        crs = terra::crs(r)
+          extent = terra::ext(r)
+        , resolution = res_target
+        , crs = terra::crs(r)
       )
 
       terra::resample(r, r_template, method = method)
@@ -151,11 +151,11 @@ rast_to_df <- function(
     top_vals <- terra::extract(rtop, pts, method = method_top)
 
     df <- data.frame(
-      ID  = seq_len(nrow(coords)),
-      x   = coords$x,
-      y   = coords$y,
-      cov = cov_vals[,2],
-      elv = top_vals[,2]
+        ID  = seq_len(nrow(coords))
+      , x   = coords$x
+      , y   = coords$y
+      , cov = cov_vals[,2]
+      , elv = top_vals[,2]
     )
 
     df <- df[stats::complete.cases(df), ]
@@ -171,19 +171,19 @@ rast_to_df <- function(
     if (return == "both") {
       return(list(
         rasters = list(
-          cover = rcover,
-          top   = rtop
+            cover = rcover
+          , top   = rtop
         ),
-        data = df,
-        crs = "EPSG:4326"
+          data = df
+        , crs = "EPSG:4326"
       ))
     }
 
     if (return == "rasters") {
       return(list(
-        cover = rcover,
-        top   = rtop,
-        crs   = "EPSG:4326"
+          cover = rcover
+        , top   = rtop
+        , crs   = "EPSG:4326"
       ))
     }
 
@@ -195,15 +195,15 @@ rast_to_df <- function(
   # =========================================================
 
   crs_list <- c(
-    terra::crs(rcover),
-    terra::crs(rtop),
-    terra::crs(rast_or_coord)
+      terra::crs(rcover)
+    , terra::crs(rtop)
+    , terra::crs(rast_or_coord)
   )
 
   target_crs_name <- paste0(target_crs," | WGS | WGS84")
 
   if (length(unique(crs_list)) > 1) {
-    warning("Different CRS values detected. Reprojecting to: ", target_crs_name)
+    message("Different CRS values detected. Reprojecting to: ", target_crs_name)
   }
 
   reproject_if_needed <- function(r) {
@@ -213,9 +213,9 @@ rast_to_df <- function(
     return(r)
   }
 
-  rcover <- reproject_if_needed(rcover)
-  rtop   <- reproject_if_needed(rtop)
-  rast_or_coord <- reproject_if_needed(rast_or_coord)
+  rcover         <- reproject_if_needed(rcover)
+  rtop           <- reproject_if_needed(rtop)
+  rast_or_coord  <- reproject_if_needed(rast_or_coord)
 
   align_to_study <- function(r, rast_or_coord, method) {
 
@@ -223,13 +223,13 @@ rast_to_df <- function(
 
     terra::mask(
       terra::resample(
-        terra::crop(r, rast_or_coord, filename = filename),
-        rast_or_coord,
-        method = method,
-        filename = filename
+          terra::crop(r, rast_or_coord, filename = filename)
+        , rast_or_coord
+        , method = method
+        , filename = filename
       ),
-      rast_or_coord,
-      filename = filename
+        rast_or_coord
+      , filename = filename
     )
   }
 
@@ -261,16 +261,16 @@ rast_to_df <- function(
 
   if (return == "rasters") {
     return(list(
-      cover = cover,
-      top   = top,
-      crs   = target_crs
+        cover = cover
+      , top   = top
+      , crs   = target_crs
     ))
   }
 
   stack <- c(cover, top)
 
-  df <- terra::as.data.frame(stack, xy = TRUE, na.rm = TRUE) |>
-    tibble::rownames_to_column("ID") #%>% tibble::as_tibble()
+  df <- terra::as.data.frame(stack, xy = TRUE, na.rm = TRUE)  %>%
+    tibble::rownames_to_column("ID")
 
   if (return == "data") {
     return(df)
@@ -279,12 +279,12 @@ rast_to_df <- function(
   if (return == "both") {
     return(list(
       rasters = list(
-        study = study,
-        cover = cover,
-        top   = top
+          study = study
+        , cover = cover
+        , top   = top
       ),
-      data = df,
-      crs = target_crs
+        data = df
+      , crs = target_crs
     ))
   }
 

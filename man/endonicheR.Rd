@@ -101,7 +101,7 @@ endonicheR(
 
 \item{rast_or_coord}{SpatRaster, matrix, or data.frame. Study raster or coordinates used to generate the environmental input data frame.}
 
-\item{traits_df}{data.frame or NULL. Table containing species-level physiological and morphological parameters. Must include a species identifier column named \code{sp}. If NULL, default parameters are used for a single species named \code{"sp1"}.}
+\item{traits_df}{data.frame or NULL. Table containing species-level physiological, morphological, and behavioural parameters.}
 
 \item{method_cover}{Character. Resampling or extraction method for the cover raster passed to \code{rast_to_df()}. Default is \code{"near"}.}
 
@@ -259,25 +259,27 @@ endonicheR(
 
 \item{WRITE_INPUT}{Numeric. Argument passed to \code{NicheMapR::endoR()} controlling whether input is written.}
 
-\item{list_format}{Logical. If TRUE, returns a nested list by species, energy balance, evaporation, and pixel. If FALSE, returns a tidy data frame.}
+\item{list_format}{Logical. If TRUE, returns a nested list by species, energy balance (enbal), evaporative water loss (masbal), and pixel. If FALSE, returns a tidy data frame.}
 
 \item{summary}{Logical. If TRUE and \code{list_format = FALSE}, returns a daily summary by species and pixel.}
 
-\item{break_n}{Numeric or NULL. Optional chunk size used to split large pixel/location data frames into smaller blocks before running the microclimate and physiological models. If NULL, all pixels are processed at once. For example, \code{break_n = 500} processes the input in blocks of up to 500 pixels.}
+\item{break_n}{Numeric or NULL. Optional chunk size used to split large pixel/location data frames into smaller blocks before running the microclimate and physiological models. This option is useful for reducing memory usage during large simulations.}
 
-\item{checkpoint_dir}{Character. Directory used to store checkpoint files generated
-during long simulations. If NULL (default), checkpoint files
-are not created.}
+\item{checkpoint_dir}{Character. Directory used to store checkpoint files during block processing. If NULL (default), checkpoint files are not created.}
 
 \item{resume}{Logical. If TRUE and checkpoint files already exist,
 previously completed blocks are loaded and skipped.
 Default is TRUE.}
 }
 \value{
-If \code{list_format = TRUE}, a nested list with one element per species, each containing \code{energy} and \code{evap} lists by pixel. If \code{list_format = FALSE}, a data frame with species, pixel coordinates, day, time, air temperature, energy balance, and mass balance. If \code{summary = TRUE}, returns daily summary statistics.
+If \code{list_format = TRUE}, returns a nested list with one element per species, each containing \code{energy} (\code{enbal}) and \code{evap} (\code{masbal}) lists for every pixel.
+
+If \code{list_format = FALSE}, returns a tidy data frame containing species, pixel coordinates, day, time, air temperature, energy balance (\code{enbal}), and evaporative water loss (\code{masbal}).
+
+If \code{summary = TRUE}, returns daily summary statistics for each species and pixel.
 }
 \description{
-Runs microclimate and endotherm physiological niche simulations for one or more species. The function first converts raster or coordinate inputs into a pixel-level environmental data frame using \code{rast_to_df()}, then runs \code{NicheMapR::micro_global()} once per pixel and reuses the resulting microclimate for all species in \code{traits_df}.
+Runs microclimate and endotherm simulations for one or more species. The function first converts raster or coordinate inputs into a pixel-level environmental data frame using \code{rast_to_df()}, then runs \code{NicheMapR::micro_global()} once per pixel and reuses the resulting microclimate for all species in \code{traits_df}.
 }
 \details{
 Run microclimate-based endotherm physiological niche simulations
@@ -285,12 +287,12 @@ Run microclimate-based endotherm physiological niche simulations
 \examples{
 \dontrun{
 out <- micronicheR::endonicheR(
-  rcover = cover_raster,
-  rtop = elevation_raster,
-  rast_or_coord = study_raster,
-  traits_df = traits_table,
-  list_format = FALSE,
-  summary = TRUE
+    rcover = cover_raster
+  , rtop = elevation_raster
+  , rast_or_coord = study_raster
+  , traits_df = traits_table
+  , list_format = FALSE
+  , summary = TRUE
 )
 }
 }

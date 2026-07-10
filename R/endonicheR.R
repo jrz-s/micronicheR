@@ -1,6 +1,6 @@
 #' Run microclimate-based endotherm physiological niche simulations
 #' @title Microclimate-based physiological niche modeling
-#' @description Runs microclimate and endotherm physiological niche simulations for one or more species. The function first converts raster or coordinate inputs into a pixel-level environmental data frame using `rast_to_df()`, then runs `NicheMapR::micro_global()` once per pixel and reuses the resulting microclimate for all species in `traits_df`.
+#' @description Runs microclimate and endotherm simulations for one or more species. The function first converts raster or coordinate inputs into a pixel-level environmental data frame using `rast_to_df()`, then runs `NicheMapR::micro_global()` once per pixel and reuses the resulting microclimate for all species in `traits_df`.
 #' @author
 #' \itemize{
 #'   \item Zárate-Salazar, J. Rafael, PhD
@@ -12,7 +12,7 @@
 #' @param rcover SpatRaster. Raster containing vegetation cover or shade values.
 #' @param rtop SpatRaster. Raster containing elevation or topographic values.
 #' @param rast_or_coord SpatRaster, matrix, or data.frame. Study raster or coordinates used to generate the environmental input data frame.
-#' @param traits_df data.frame or NULL. Table containing species-level physiological and morphological parameters. Must include a species identifier column named `sp`. If NULL, default parameters are used for a single species named `"sp1"`.
+#' @param traits_df data.frame or NULL. Table containing species-level physiological, morphological, and behavioural parameters.
 #' @param method_cover Character. Resampling or extraction method for the cover raster passed to `rast_to_df()`. Default is `"near"`.
 #' @param method_top Character. Resampling or extraction method for the elevation raster passed to `rast_to_df()`. Default is `"bilinear"`.
 #' @param use_disk Logical. If TRUE, intermediate raster operations are written to disk using temporary files. Default is FALSE.
@@ -91,27 +91,30 @@
 #' @param RESPIRE Numeric. Indicates whether respiration and associated heat loss are calculated.
 #' @param TREGMODE Numeric. Thermoregulation mode.
 #' @param WRITE_INPUT Numeric. Argument passed to `NicheMapR::endoR()` controlling whether input is written.
-#' @param break_n Numeric or NULL. Optional chunk size used to split large pixel/location data frames into smaller blocks before running the microclimate and physiological models. If NULL, all pixels are processed at once. For example, `break_n = 500` processes the input in blocks of up to 500 pixels.
-#' @param list_format Logical. If TRUE, returns a nested list by species, energy balance, evaporation, and pixel. If FALSE, returns a tidy data frame.
+#' @param break_n Numeric or NULL. Optional chunk size used to split large pixel/location data frames into smaller blocks before running the microclimate and physiological models. This option is useful for reducing memory usage during large simulations.
+#' @param list_format Logical. If TRUE, returns a nested list by species, energy balance (enbal), evaporative water loss (masbal), and pixel. If FALSE, returns a tidy data frame.
 #' @param summary Logical. If TRUE and `list_format = FALSE`, returns a daily summary by species and pixel.
-#' @param checkpoint_dir
-#' Character. Directory used to store checkpoint files generated
-#' during long simulations. If NULL (default), checkpoint files
-#' are not created.
+#' @param checkpoint_dir Character. Directory used to store checkpoint files during block processing. If NULL (default), checkpoint files are not created.
 #' @param resume
 #' Logical. If TRUE and checkpoint files already exist,
 #' previously completed blocks are loaded and skipped.
 #' Default is TRUE.
-#' @return If `list_format = TRUE`, a nested list with one element per species, each containing `energy` and `evap` lists by pixel. If `list_format = FALSE`, a data frame with species, pixel coordinates, day, time, air temperature, energy balance, and mass balance. If `summary = TRUE`, returns daily summary statistics.
+#' @return
+#' If `list_format = TRUE`, returns a nested list with one element per species, each containing `energy` (`enbal`) and `evap` (`masbal`) lists for every pixel.
+#'
+#' If `list_format = FALSE`, returns a tidy data frame containing species, pixel coordinates, day, time, air temperature, energy balance (`enbal`), and evaporative water loss (`masbal`).
+#'
+#' If `summary = TRUE`, returns daily summary statistics for each species and pixel.
+#'
 #' @examples
 #' \dontrun{
 #' out <- micronicheR::endonicheR(
-#'   rcover = cover_raster,
-#'   rtop = elevation_raster,
-#'   rast_or_coord = study_raster,
-#'   traits_df = traits_table,
-#'   list_format = FALSE,
-#'   summary = TRUE
+#'     rcover = cover_raster
+#'   , rtop = elevation_raster
+#'   , rast_or_coord = study_raster
+#'   , traits_df = traits_table
+#'   , list_format = FALSE
+#'   , summary = TRUE
 #' )
 #' }
 #' @importFrom dplyr mutate select rename group_by summarise slice_sample coalesce
@@ -131,88 +134,88 @@ endonicheR <- function(
   # ----------------------- #
 
   # Coverage raster
-  rcover = NULL
+    rcover        = NULL # it the 'minshade' to 'micro_global()' tree cover from raster (Minimum shade level to use (%) (can be a single value or a vector of daily values))
   # topographic raster
-  , rtop = NULL
+  , rtop          = NULL
   # Raster or coordinates of the study
   , rast_or_coord = NULL
   # Dataframe with the traits provided by the researcher
-  , traits_df = NULL
+  , traits_df     = NULL
 
   # arguments passed to rast_to_df()
-  , method_cover = "near"
-  , method_top = "bilinear"
-  , use_disk = FALSE
-  , resample_res = NULL
+  , method_cover  = "near"
+  , method_top    = "bilinear"
+  , use_disk      = FALSE
+  , resample_res  = NULL
 
   # conditional samples
-  , sample_n = NULL
-  , sample_frac = NULL
+  , sample_n      = NULL
+  , sample_frac   = NULL
   , seed = NULL
 
   # ----------------------- #
   # Environmental arguments
   # ----------------------- #
-  , maxshade = 100
-  , runshade = 1
-  , Usrhyt = 0.01
+  , maxshade      = 100 # Maximum shade level to use (%) (can be a single value or a vector of daily values)
+  , runshade      = 1 # Run the microclimate model twice, once for each shade level (1) or just once for the minimum shade (0)?
+  , Usrhyt        = 0.01 # Local height (m) at which air temperature, wind speed and humidity are to be computed for organism of interest
 
   # ----------------------- #
   # Arguments of the species
   # ----------------------- #
 
-  , Z = 90 # solar zenith angle (degrees)
-  , ABSSB = 0.8 # substrate solar absorptivity (fractional, 0-1)
-  , FLTYPE = 0 # fluid type: 0 = air; 1 = freshwater; 2 = saltwater
-  , KSUB = 2.79 # substrate thermal conductivity
-  , BP = -1 # Pa; negative value means elevation is used
-  , O2GAS = 20.95 # oxygen concentration in air, used to account for non-atmospheric concentrations, e.g., burrows
-  , N2GAS = 79.02 # nitrogen concentration in air, used to account for non-atmospheric concentrations, e.g., burrows
-  , CO2GAS = 0.0412 # carbon dioxide concentration in air, used to account for non-atmospheric concentrations, e.g., burrows
-  , PDIF = 0.15 # proportion of solar radiation that is diffuse (fractional, 0-1)
+  , Z       = 90 # solar zenith angle (degrees)
+  , ABSSB   = 0.8 # substrate solar absorptivity (fractional, 0-1)
+  , FLTYPE  = 0 # fluid type: 0 = air; 1 = freshwater; 2 = saltwater
+  , KSUB    = 2.79 # substrate thermal conductivity
+  , BP      = -1 # Pa; negative value means elevation is used
+  , O2GAS   = 20.95 # oxygen concentration in air, used to account for non-atmospheric concentrations, e.g., burrows
+  , N2GAS   = 79.02 # nitrogen concentration in air, used to account for non-atmospheric concentrations, e.g., burrows
+  , CO2GAS  = 0.0412 # carbon dioxide concentration in air, used to account for non-atmospheric concentrations, e.g., burrows
+  , PDIF    = 0.15 # proportion of solar radiation that is diffuse (fractional, 0-1)
 
   # ---- BEHAVIOR ----
 
-  , FLYHR = 0 # is flight occurring at this hour? (imposes forced evaporative loss)
-  , UNCURL = 0.1 # allows the animal to uncurl toward SHAPE_B_MAX; the value is the increment by which SHAPE_B is increased per iteration
-  , TC_INC = 0.1 # enables core temperature elevation; the value is the increment by which TC is increased per iteration
+  , FLYHR      = 0 # is flight occurring at this hour? (imposes forced evaporative loss)
+  , UNCURL     = 0.1 # allows the animal to uncurl toward SHAPE_B_MAX; the value is the increment by which SHAPE_B is increased per iteration
+  , TC_INC     = 0.1 # enables core temperature elevation; the value is the increment by which TC is increased per iteration
   , PCTWET_INC = 0.1 # enables sweating; the value is the increment by which PCTWET is increased per iteration
   , PCTWET_MAX = 70 # maximum surface area that can be wet
-  , AK1_INC = 0.1 # enables increased thermal conductivity (W/mK); the value is the increment by which AK1 is increased per iteration
-  , AK1_MAX = 2.8 # maximum flesh conductivity
-  , PANT = 1 # multiplier on respiratory frequency to simulate panting
-  , PANT_INC = 0.1 # increment for the respiratory frequency multiplier to simulate panting
-  , PANT_MULT = 1.05 # multiplier on basal metabolic rate at the maximum panting level
+  , AK1_INC    = 0.1 # enables increased thermal conductivity (W/mK); the value is the increment by which AK1 is increased per iteration
+  , AK1_MAX    = 2.8 # maximum flesh conductivity
+  , PANT       = 1 # multiplier on respiratory frequency to simulate panting
+  , PANT_INC   = 0.1 # increment for the respiratory frequency multiplier to simulate panting
+  , PANT_MULT  = 1.05 # multiplier on basal metabolic rate at the maximum panting level
 
   # ---- MORPHOLOGY ----
 
   # Geometry
-  , AMASS = 1.2 # kg (body mass) (Jerusalinsky, 2013)
-  , ANDENS = 1000 # kg/m3 (density)
-  , SUBQFAT = 0 # is subcutaneous fat present? (0 = no, 1 = yes)
-  , FATPCT = 20 # body fat percentage
-  , SHAPE = 4 # shape (1 = cylinder, 2 = sphere, 3 = plate, 4 = ellipsoid)
-  , SHAPE_B = 7 # ratio of long to short axis, must be > 1 (-)
+  , AMASS       = 1.2 # kg (body mass) (Jerusalinsky, 2013)
+  , ANDENS      = 1000 # kg/m3 (density)
+  , SUBQFAT     = 0 # is subcutaneous fat present? (0 = no, 1 = yes)
+  , FATPCT      = 20 # body fat percentage
+  , SHAPE       = 4 # shape (1 = cylinder, 2 = sphere, 3 = plate, 4 = ellipsoid)
+  , SHAPE_B     = 7 # ratio of long to short axis, must be > 1 (-)
   , SHAPE_B_MAX = 7 # maximum possible ratio of long to short axis, must be > 1 (-)
-  , PVEN = 0.3 # fraction of surface area covered by ventral fur (fractional, 0-1)
-  , PCOND = 0 # fraction of surface area in contact with the substrate (fractional, 0-1)
-  , SAMODE = 2 # if 0, use surface area based on SHAPE geometry; if 1, use bird skin surface area allometry from Walsberg & King 1978, JEB 76:185-189; if 2, use mammal surface area from Stahl 1967, J. Appl. Physiol. 22:453-460
-  , ORIENT = 1 # if 1 = normal to solar rays (heat maximization), if 2 = parallel to solar rays (heat minimization), if 3 = vertical and varying with solar altitude, or if 0 = average
+  , PVEN        = 0.3 # fraction of surface area covered by ventral fur (fractional, 0-1)
+  , PCOND       = 0 # fraction of surface area in contact with the substrate (fractional, 0-1)
+  , SAMODE      = 2 # if 0, use surface area based on SHAPE geometry; if 1, use bird skin surface area allometry from Walsberg & King 1978, JEB 76:185-189; if 2, use mammal surface area from Stahl 1967, J. Appl. Physiol. 22:453-460
+  , ORIENT      = 1 # if 1 = normal to solar rays (heat maximization), if 2 = parallel to solar rays (heat minimization), if 3 = vertical and varying with solar altitude, or if 0 = average
 
   # Fur properties
   , FURTHRMK = 0 # user-specified fur thermal conductivity (W/mK), not used if 0
-  , DHAIRD = 30E-06 # hair diameter, dorsal (m)
-  , DHAIRV = 30E-06 # hair diameter, ventral (m)
-  , LHAIRD = 57E-03 # hair length, dorsal (m)
-  , LHAIRV = 44E-03 # hair length, ventral (m)
-  , ZFURD = 22E-03 # fur depth, dorsal (m)
-  , ZFURV = 17E-03 # fur depth, ventral (m)
-  , RHOD = 3000E+04 # hair density, dorsal (1/m2)
-  , RHOV = 3000E+04 # hair density, ventral (1/m2)
-  , REFLD = 0.2 # dorsal fur reflectivity (fractional, 0-1)
-  , REFLV = 0.2 # ventral fur reflectivity (fractional, 0-1)
-  , KHAIR = 0.209 # hair thermal conductivity
-  , XR = 1 # fractional fur depth at which longwave radiation is exchanged (0-1)
+  , DHAIRD   = 30E-06 # hair diameter, dorsal (m)
+  , DHAIRV   = 30E-06 # hair diameter, ventral (m)
+  , LHAIRD   = 57E-03 # hair length, dorsal (m)
+  , LHAIRV   = 44E-03 # hair length, ventral (m)
+  , ZFURD    = 22E-03 # fur depth, dorsal (m)
+  , ZFURV    = 17E-03 # fur depth, ventral (m)
+  , RHOD     = 3000E+04 # hair density, dorsal (1/m2)
+  , RHOV     = 3000E+04 # hair density, ventral (1/m2)
+  , REFLD    = 0.2 # dorsal fur reflectivity (fractional, 0-1)
+  , REFLV    = 0.2 # ventral fur reflectivity (fractional, 0-1)
+  , KHAIR    = 0.209 # hair thermal conductivity
+  , XR       = 1 # fractional fur depth at which longwave radiation is exchanged (0-1)
 
   # Radiation exchange
   , EMISAN = 0.99 # animal emissivity (-)
@@ -221,41 +224,45 @@ endonicheR <- function(
   , FSKREF = 0.5 # sky configuration factor
 
   # Thermal physiology
-  , TC = 37 # core temperature
+  , TC     = 37 # core temperature
   , TC_MAX = 39 # maximum core temperature
-  , AK1 = 0.9 # initial flesh thermal conductivity (0.412 - 2.8 W/m per degree Celsius)
-  , AK2 = 0.230 # fat conductivity
+  , AK1    = 0.9 # initial flesh thermal conductivity (0.412 - 2.8 W/m per degree Celsius)
+  , AK2    = 0.230 # fat conductivity
 
   # Evaporation
-  , PCTWET = 0.5 # portion of the skin surface that is wet (%)
-  , FURWET = 0 # portion of fur/feathers that becomes wet after rain (%)
+  , PCTWET     = 0.5 # portion of the skin surface that is wet (%)
+  , FURWET     = 0 # portion of fur/feathers that becomes wet after rain (%)
   , PCTBAREVAP = 0 # surface area available for evaporation that is bare skin, e.g., paw licking (%)
-  , PCTEYES = 0 # surface area composed of eyes (%) - zero if sleeping
-  , DELTAR = 0 # offset between air temperature and respiratory temperature (per degree Celsius)
-  , RELXIT = 100 # relative humidity of exhaled air (%)
+  , PCTEYES    = 0 # surface area composed of eyes (%) - zero if sleeping
+  , DELTAR     = 0 # offset between air temperature and respiratory temperature (per degree Celsius)
+  , RELXIT     = 100 # relative humidity of exhaled air (%)
 
   # Metabolism | Respiration
-  , RQ = 0.80 # respiratory quotient (fractional, 0-1)
-  , EXTREF = 20 # O2 extraction efficiency (%)
+  , RQ       = 0.80 # respiratory quotient (fractional, 0-1)
+  , EXTREF   = 20 # O2 extraction efficiency (%)
   , PANT_MAX = 5 # maximum respiratory frequency multiplier to simulate panting (-)
-  , PZFUR = 0 # fractional incremental reduction in ZFUR from the piloerected state (-); values greater than zero trigger a piloerection response
-  , Q10 = 2 # Q10 factor for adjusting BMR to TC
-  , TC_MIN = 19 # minimum core temperature during torpor (TREGMODE = 0)
+  , PZFUR    = 0 # fractional incremental reduction in ZFUR from the piloerected state (-); values greater than zero trigger a piloerection response
+  , Q10      = 2 # Q10 factor for adjusting BMR to TC
+  , TC_MIN   = 19 # minimum core temperature during torpor (TREGMODE = 0)
 
   # Other model settings
-  , DIFTOL = 0.001 # tolerance for SIMULSOL
+  , DIFTOL    = 0.001 # tolerance for SIMULSOL
   , THERMOREG = 1 # invoke thermoregulatory response
-  , RESPIRE = 1 # calculate respiration and associated heat loss
-  , TREGMODE = 1 # 0 = torpor, 1 = raise core temperature, then pant, then sweat; 2 = raise core temperature and pant simultaneously, then sweat
+  , RESPIRE   = 1 # calculate respiration and associated heat loss
+  , TREGMODE  = 1 # 0 = torpor, 1 = raise core temperature, then pant, then sweat; 2 = raise core temperature and pant simultaneously, then sweat
 
   , WRITE_INPUT = 0
 
+  # ----------------------- #
+  # Complementary arguments
+  # ----------------------- #
+
   , list_format = TRUE
-  , summary = FALSE
-  , break_n = NULL
+  , summary     = FALSE
+  , break_n     = NULL
 
   , checkpoint_dir = NULL
-  , resume = TRUE
+  , resume         = TRUE
 
 ){ # start
 
@@ -279,14 +286,14 @@ endonicheR <- function(
   # ================================================================
 
   df <- rast_to_df(
-    rcover = rcover
-    , rtop = rtop
+      rcover        = rcover
+    , rtop          = rtop
     , rast_or_coord = rast_or_coord
-    , method_cover = method_cover
-    , method_top = method_top
-    , return = "data"
-    , use_disk = use_disk
-    , resample_res = resample_res
+    , method_cover  = method_cover
+    , method_top    = method_top
+    , return        = "data"
+    , use_disk      = use_disk
+    , resample_res  = resample_res
   )
 
   # Optional sampling of pixels/locations
@@ -316,37 +323,6 @@ endonicheR <- function(
     }
 
     break_n <- as.integer(break_n)
-
-    # =====================================================================
-    # >>> V2 CHECKPOINT SYSTEM (BEGIN)
-    # =====================================================================
-
-    if (!is.null(checkpoint_dir)) {
-
-      message(
-        "Checkpoint directory: ",
-        normalizePath(
-          checkpoint_dir,
-          winslash = "/",
-          mustWork = FALSE
-        )
-      )
-
-      if (!dir.exists(checkpoint_dir)) {
-
-        dir.create(
-          checkpoint_dir,
-          recursive = TRUE,
-          showWarnings = FALSE
-        )
-
-      }
-
-    }
-
-    # =====================================================================
-    # >>> V2 CHECKPOINT SYSTEM (END)
-    # =====================================================================
 
   }
 
@@ -379,23 +355,23 @@ endonicheR <- function(
       message("Running microclimate for pixel ID: ", df$ID[l])
 
       micro <- NicheMapR::micro_global(
-        loc = c(df$x[l], df$y[l])
-        , dem = df$elv[l]
-        , minshade = df$cov[l]
-        , maxshade = maxshade
-        , runshade = runshade
-        , Usrhyt = Usrhyt
+          loc      = c(df$x[l], df$y[l]) # coordinates from raster or file with coordinates in format ".txt". or others.
+        , dem      = df$elv[l] # topography from raster
+        , minshade = df$cov[l] # tree cover from raster (Minimum shade level to use (%) (can be a single value or a vector of daily values))
+        , maxshade = maxshade # use 100 for default (Maximum shade level to use (%) (can be a single value or a vector of daily values))
+        , runshade = runshade # use 1 for default ()
+        , Usrhyt   = Usrhyt # use 0 (before was 0.01) (for default Run the microclimate model twice, once for each shade level (1) or just once for the minimum shade (0)?)
       )
 
       micro_pixels[[l]] <- list(
-        ID = df$ID[l]
-        , x = df$x[l]
-        , y = df$y[l]
-        , cov = df$cov[l]
-        , elv = df$elv[l]
-        , tshade = as.data.frame(micro$shadmet)
+          ID       = df$ID[l]
+        , x        = df$x[l]
+        , y        = df$y[l]
+        , cov      = df$cov[l]
+        , elv      = df$elv[l]
+        , tshade   = as.data.frame(micro$shadmet)
         , shadsoil = as.data.frame(micro$shadsoil)
-        , metout = as.data.frame(micro$metout)
+        , metout   = as.data.frame(micro$metout)
       )
     }
 
@@ -459,78 +435,78 @@ endonicheR <- function(
           NicheMapR::endoR(
 
             # Group 01
-            TA = TA[i]
+              TA    = TA[i]
             , TAREF = TA[i]
-            , TGRD = TGRD
-            , TSKY = TSKY
-            , VEL = VEL
-            , RH = RH
+            , TGRD  = TGRD
+            , TSKY  = TSKY
+            , VEL   = VEL
+            , RH    = RH
             , QSOLR = QSOLR
 
             # Group 02
-            , Z = pars$Z
-            , ELEV = pix$elv
-            , ABSSB = pars$ABSSB
-            , FLTYPE = pars$FLTYPE
+            , Z       = pars$Z
+            , ELEV    = pix$elv
+            , ABSSB   = pars$ABSSB
+            , FLTYPE  = pars$FLTYPE
             , TCONDSB = TGRD
-            , KSUB = pars$KSUB
-            , TBUSH = TA[i]
-            , BP = pars$BP
-            , O2GAS = pars$O2GAS
-            , N2GAS = pars$N2GAS
-            , CO2GAS = pars$CO2GAS
-            , R_PCO2 = pars$CO2GAS / 100
-            , PDIF = pars$PDIF
+            , KSUB    = pars$KSUB
+            , TBUSH   = TA[i]
+            , BP      = pars$BP
+            , O2GAS   = pars$O2GAS
+            , N2GAS   = pars$N2GAS
+            , CO2GAS  = pars$CO2GAS
+            , R_PCO2  = pars$CO2GAS / 100
+            , PDIF    = pars$PDIF
 
             # ---- BEHAVIOR ----
 
             # Group 03
-            , SHADE = pix$cov
-            , FLYHR = pars$FLYHR
-            , UNCURL = pars$UNCURL
-            , TC_INC = pars$TC_INC
+            , SHADE      = pix$cov
+            , FLYHR      = pars$FLYHR
+            , UNCURL     = pars$UNCURL
+            , TC_INC     = pars$TC_INC
             , PCTWET_INC = pars$PCTWET_INC
             , PCTWET_MAX = pars$PCTWET_MAX
-            , AK1_INC = pars$AK1_INC
-            , AK1_MAX = pars$AK1_MAX
-            , PANT = pars$PANT
-            , PANT_INC = pars$PANT_INC
-            , PANT_MULT = pars$PANT_MULT
+            , AK1_INC    = pars$AK1_INC
+            , AK1_MAX    = pars$AK1_MAX
+            , PANT       = pars$PANT
+            , PANT_INC   = pars$PANT_INC
+            , PANT_MULT  = pars$PANT_MULT
 
             # ---- MORPHOLOGY ----
 
             # Geometry
             # Group 04
-            , AMASS = pars$AMASS
-            , ANDENS = pars$ANDENS
-            , SUBQFAT = pars$SUBQFAT
-            , FATPCT = pars$FATPCT
-            , SHAPE = pars$SHAPE
-            , SHAPE_B = pars$SHAPE_B
+            , AMASS       = pars$AMASS
+            , ANDENS      = pars$ANDENS
+            , SUBQFAT     = pars$SUBQFAT
+            , FATPCT      = pars$FATPCT
+            , SHAPE       = pars$SHAPE
+            , SHAPE_B     = pars$SHAPE_B
             , SHAPE_B_MAX = pars$SHAPE_B_MAX
-            , SHAPE_C = pars$SHAPE_B
-            , PVEN = pars$PVEN
-            , PCOND = pars$PCOND
-            , SAMODE = pars$SAMODE
+            , SHAPE_C     = pars$SHAPE_B
+            , PVEN        = pars$PVEN
+            , PCOND       = pars$PCOND
+            , SAMODE      = pars$SAMODE
 
             # Fur/Skin properties
             # Group 05
-            , FURTHRMK = pars$FURTHRMK
-            , DHAIRD = pars$DHAIRD
-            , DHAIRV = pars$DHAIRV
-            , LHAIRD = pars$LHAIRD
-            , LHAIRV = pars$LHAIRV
+            , FURTHRMK  = pars$FURTHRMK
+            , DHAIRD    = pars$DHAIRD
+            , DHAIRV    = pars$DHAIRV
+            , LHAIRD    = pars$LHAIRD
+            , LHAIRV    = pars$LHAIRV
             , ZFURD_MAX = pars$LHAIRD
             , ZFURV_MAX = pars$LHAIRV
-            , ZFURD = pars$ZFURD
-            , ZFURV = pars$ZFURV
-            , RHOD = pars$RHOD
-            , RHOV = pars$RHOV
-            , REFLD = pars$REFLD
-            , REFLV = pars$REFLV
-            , ZFURCOMP = pars$ZFURV
-            , KHAIR = pars$KHAIR
-            , XR = pars$XR
+            , ZFURD     = pars$ZFURD
+            , ZFURV     = pars$ZFURV
+            , RHOD      = pars$RHOD
+            , RHOV      = pars$RHOV
+            , REFLD     = pars$REFLD
+            , REFLV     = pars$REFLV
+            , ZFURCOMP  = pars$ZFURV
+            , KHAIR     = pars$KHAIR
+            , XR        = pars$XR
 
             # Radiation exchange
             # Group 06
@@ -541,41 +517,41 @@ endonicheR <- function(
 
             # Thermal physiology
             # Group 07
-            , TC = pars$TC
+            , TC     = pars$TC
             , TC_MAX = pars$TC_MAX
-            , AK1 = pars$AK1
-            , AK2 = pars$AK2
+            , AK1    = pars$AK1
+            , AK2    = pars$AK2
 
             # Evaporation
             # Group 08
-            , PCTWET = pars$PCTWET
-            , FURWET = pars$FURWET
+            , PCTWET     = pars$PCTWET
+            , FURWET     = pars$FURWET
             , PCTBAREVAP = pars$PCTBAREVAP
-            , PCTEYES = pars$PCTEYES
-            , DELTAR = pars$DELTAR
-            , RELXIT = pars$RELXIT
+            , PCTEYES    = pars$PCTEYES
+            , DELTAR     = pars$DELTAR
+            , RELXIT     = pars$RELXIT
 
             # Metabolism / Respiration
             # Group 09
-            , QBASAL = (70 * pars$AMASS ^ 0.75) * (4.185 / (24 * 3.6))
-            , RQ = pars$RQ
-            , EXTREF = pars$EXTREF
+            , QBASAL   = (70 * pars$AMASS ^ 0.75) * (4.185 / (24 * 3.6))
+            , RQ       = pars$RQ
+            , EXTREF   = pars$EXTREF
             , PANT_MAX = pars$PANT_MAX
-            , PZFUR = pars$PZFUR
-            , Q10 = pars$Q10
-            , TC_MIN = pars$TC_MIN
+            , PZFUR    = pars$PZFUR
+            , Q10      = pars$Q10
+            , TC_MIN   = pars$TC_MIN
 
             # Initial conditions
             # Group 11
-            , TS = pars$TC - 3
+            , TS  = pars$TC - 3
             , TFA = TA[i]
 
             # Other model settings
             # Group 12
-            , DIFTOL = pars$DIFTOL
+            , DIFTOL    = pars$DIFTOL
             , THERMOREG = pars$THERMOREG
-            , RESPIRE = pars$RESPIRE
-            , TREGMODE = pars$TREGMODE
+            , RESPIRE   = pars$RESPIRE
+            , TREGMODE  = pars$TREGMODE
 
             # Default
             , WRITE_INPUT = WRITE_INPUT
@@ -608,14 +584,14 @@ endonicheR <- function(
         names(evap) <- NULL
 
         mod.xy.eb[[l]] <- cbind(
-          metout$DOY
+            metout$DOY
           , metout$TIME
           , TA
           , qgens
         )
 
         mod.xy.mb[[l]] <- cbind(
-          metout$DOY
+            metout$DOY
           , metout$TIME
           , TA
           , evap
@@ -626,7 +602,7 @@ endonicheR <- function(
       }
 
       niche_list[[sp_name]] <- list(
-        energy = mod.xy.eb
+          energy = mod.xy.eb
         , evap = mod.xy.mb
       )
     }
@@ -703,10 +679,10 @@ endonicheR <- function(
   if (!file.exists(gcfolder_file)) {
 
     stop(
-      "NicheMapR global climate data were not found.\n\n",
-      "Please run this once before using endonicheR():\n\n",
-      "micronicheR::microniche_setup_global_climate(folder = getwd())\n\n",
-      "After the download finishes, restart R and run endonicheR() again."
+        "NicheMapR global climate data were not found.\n\n"
+      , "Please run this once before using endonicheR():\n\n"
+      , "micronicheR::microniche_setup_global_climate(folder = getwd())\n\n"
+      , "After the download finishes, restart R and run endonicheR() again."
     )
 
   } else {
@@ -844,16 +820,16 @@ endonicheR <- function(
 
   if (!requireNamespace("NicheMapR", quietly = TRUE)) {
     stop(
-      "Package 'NicheMapR' is required.\n",
-      "Please install it with:\n",
-      "micronicheR::microniche_setup(github = 'mrke/NicheMapR')"
+        "Package 'NicheMapR' is required.\n"
+      , "Please install it with:\n"
+      , "micronicheR::microniche_setup(github = 'mrke/NicheMapR')"
     )
   }
 
-  # Note:
-  # NicheMapR must be attached because micro_global()
-  # requires internal objects (e.g. "CampNormTbl9_1")
-  # that are not available through requireNamespace() alone.
+  # NicheMapR must be attached because some internal datasets
+  # required by micro_global() (e.g. "CampNormTbl9_1") are loaded
+  # only when the package is attached, not when it is loaded via
+  # requireNamespace().
 
   if (!"package:NicheMapR" %in% search()) {
 
@@ -882,57 +858,119 @@ endonicheR <- function(
     )
 
     message(
-      "Running endonicheR in ",
-      length(df_chunks),
-      " block(s) of up to ",
-      break_n,
-      " pixel(s)."
+        "Running endonicheR in "
+      , length(df_chunks)
+      , " block(s) of up to "
+      , break_n
+      , " pixel(s)."
     )
 
     niche_chunks <- vector("list", length(df_chunks))
 
     # =====================================================================
-    # >>> V2 CHECKPOINT SYSTEM (BEGIN) 19.06.2026
+    # >>> CHECKPOINT SYSTEM (Start)
     # =====================================================================
+
+    micro_dir <- NULL
+    endo_dir  <- NULL
+    micro_file <- NULL
+    endo_file  <- NULL
+
+    if(!is.null(checkpoint_dir)){
+
+      checkpoint_dir <- file.path(
+          checkpoint_dir
+        , "endonicheR"
+      )
+
+      micro_dir <- file.path(
+          checkpoint_dir
+        , "micro_global"
+      )
+
+      endo_dir <- file.path(
+          checkpoint_dir
+        , "endotherm"
+      )
+
+      dir.create(
+          micro_dir
+        , recursive    = TRUE
+        , showWarnings = FALSE
+      )
+
+      dir.create(
+          endo_dir
+        , recursive    = TRUE
+        , showWarnings = FALSE
+      )
+
+      message(
+
+        "Checkpoint files will be stored in:\n"
+        , normalizePath(
+            checkpoint_dir
+          , winslash = "/"
+          , mustWork = FALSE
+        ),
+          "\n\n"
+        , "The default checkpoint directory can be changed using the "
+        , "'checkpoint_dir' argument."
+
+      )
+
+    }
 
     for (b in seq_along(df_chunks)) {
 
       message(
-        "Running block ",
-        b,
-        " of ",
-        length(df_chunks),
-        " | pixels: ",
-        nrow(df_chunks[[b]])
+         "Running block "
+        , b
+        , " of "
+        , length(df_chunks)
+        , " | pixels: "
+        , nrow(df_chunks[[b]])
       )
 
-      micro_file <- NULL
-      endo_file  <- NULL
+      if(is.null(checkpoint_dir)){
 
-      if (!is.null(checkpoint_dir)) {
+        micro_file <- NULL
+        endo_file  <- NULL
+
+      } else {
 
         micro_file <- file.path(
-          checkpoint_dir,
-          paste0(
-            "micro_block_",
-            sprintf("%04d", b),
-            ".rds"
+
+          micro_dir
+
+          , paste0(
+
+            "micro_block_"
+            , sprintf("%04d", b)
+            , ".rds"
+
           )
+
         )
 
         endo_file <- file.path(
-          checkpoint_dir,
-          paste0(
-            "endo_block_",
-            sprintf("%04d", b),
-            ".rds"
+
+          endo_dir
+
+          , paste0(
+
+            "endo_block_"
+            , sprintf("%04d", b)
+            , ".rds"
+
           )
+
         )
 
       }
 
       # ------------------------------------------------------------
-      # MICROCLIMATE
+      # Microclimate simulation
       # ------------------------------------------------------------
 
       if (
@@ -942,8 +980,8 @@ endonicheR <- function(
       ) {
 
         message(
-          "Loading saved microclimate block ",
-          b
+          "Loading saved microclimate block "
+          , b
         )
 
         micro_pixels <- readRDS(micro_file)
@@ -959,8 +997,8 @@ endonicheR <- function(
           message("Saving microclimate block ", b)
 
           saveRDS(
-            micro_pixels,
-            micro_file
+            micro_pixels
+            , micro_file
           )
 
         }
@@ -968,7 +1006,7 @@ endonicheR <- function(
       }
 
       # ------------------------------------------------------------
-      # ENDOR SIMULATION
+      # Physiological simulation (endotherm)
       # ------------------------------------------------------------
 
       if (
@@ -978,8 +1016,8 @@ endonicheR <- function(
       ) {
 
         message(
-          "Loading saved endoR block ",
-          b
+          "Loading saved endotherm block "
+          , b
         )
 
         niche_chunks[[b]] <- readRDS(
@@ -989,17 +1027,17 @@ endonicheR <- function(
       } else {
 
         niche_chunks[[b]] <- endo_by_species(
-          micro_pixels = micro_pixels,
-          traits_df = traits_df
+          micro_pixels = micro_pixels
+          , traits_df = traits_df
         )
 
         if (!is.null(endo_file)) {
 
-          message("Saving endoR block ", b)
+          message("Saving endotherm block ", b)
 
           saveRDS(
-            niche_chunks[[b]],
-            endo_file
+            niche_chunks[[b]]
+            , endo_file
           )
 
         }
@@ -1008,11 +1046,19 @@ endonicheR <- function(
 
     }
 
+    message(
+      "All blocks processed successfully. Merging outputs..."
+    )
+
     # =====================================================================
-    # >>> V2 CHECKPOINT SYSTEM (END)
+    # >>> CHECKPOINT SYSTEM (End)
     # =====================================================================
 
     niche_list <- merge_niche_lists(niche_chunks)
+
+    message(
+      "endonicheR finished successfully."
+    )
 
   }
 
@@ -1029,9 +1075,9 @@ endonicheR <- function(
       tidyr::unnest_longer(.data$data_sp, indices_to = "type") %>%
       tidyr::unnest_longer(.data$data_sp, indices_to = "ID") %>%
       dplyr::mutate(
-        x = df$x[.data$ID],
-        y = df$y[.data$ID],
-        ID = df$ID[.data$ID]
+          x  = df$x[.data$ID]
+        , y  = df$y[.data$ID]
+        , ID = df$ID[.data$ID]
       ) %>%
       dplyr::mutate(data_sp = purrr::map(.data$data_sp, tibble::as_tibble)) %>%
       tidyr::unnest(.data$data_sp) %>%
@@ -1039,16 +1085,16 @@ endonicheR <- function(
         flux = dplyr::coalesce(.data$enbal, .data$masbal)
       ) %>%
       dplyr::select(
-        .data$sp, .data$type, .data$ID, .data$x, .data$y,
-        .data$DAY, .data$time, .data$TA, .data$flux
+          .data$sp, .data$type, .data$ID, .data$x, .data$y
+        , .data$DAY, .data$time, .data$TA, .data$flux
       ) %>%
       tidyr::pivot_wider(
-        names_from = .data$type,
-        values_from = .data$flux
+          names_from  = .data$type
+        , values_from = .data$flux
       ) %>%
       dplyr::rename(
-        enbal = .data$energy,
-        masbal = .data$evap
+          enbal  = .data$energy
+        , masbal = .data$evap
       )
 
     if(summary == FALSE){
@@ -1060,11 +1106,11 @@ endonicheR <- function(
       niche_df_summary <- niche_df %>%
         dplyr::group_by(.data$sp, .data$ID, .data$x, .data$y, .data$DAY) %>%
         dplyr::summarise(
-          temp.day.mean = mean(.data$TA, na.rm = TRUE),
-          temp.day.sd = stats::sd(.data$TA, na.rm = TRUE),
-          enbal.day.sum = sum(.data$enbal, na.rm = TRUE),
-          masbal.day.sum = sum(.data$masbal, na.rm = TRUE),
-          .groups = "drop"
+            temp.day.mean = mean(.data$TA, na.rm = TRUE)
+          , temp.day.sd = stats::sd(.data$TA, na.rm = TRUE)
+          , enbal.day.sum = sum(.data$enbal, na.rm = TRUE)
+          , masbal.day.sum = sum(.data$masbal, na.rm = TRUE)
+          , .groups = "drop"
         )
 
       return(niche_df_summary)
