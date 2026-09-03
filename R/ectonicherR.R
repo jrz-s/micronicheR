@@ -588,10 +588,11 @@ ectonicheR <- function(
         # ----------------------------------------------------------
 
         met <- mod.t$metout
+        env <- mod.t$environ
 
         DAY  <- as.numeric(met[, "DOY"])
         TIME <- as.numeric(met[, "TIME"])
-        TC   <- as.numeric(met[, "TC"])
+        TC   <- as.numeric(env[, "TC"])
         TA   <- as.numeric(met[, "TALOC"])
 
         qgens <- as.numeric(
