@@ -115,9 +115,23 @@ ectonicheR(
 
 \item{diurn}{Numeric. Indicates diurnal activity.}
 
-\item{list_format}{Logical. If TRUE, returns a nested list by species, energy balance (enbal), evaporative water loss (masbal), and pixel. If FALSE, returns a tidy data frame.}
+\item{list_format}{Logical. Controls the format of the returned results.
+If TRUE, returns a nested list organized by species and pixel, with
+\code{energy} and \code{evap} components. Each component contains \code{DAY}, \code{time},
+\code{TC} (body temperature), \code{TA} (air temperature), and the corresponding
+energy balance (\code{enbal}) or evaporative water loss (\code{masbal}).
+If FALSE, returns a tidy data frame containing, in order, species (\code{sp}),
+output type (\code{type}), pixel ID (\code{ID}), coordinates (\code{x}, \code{y}), day (\code{DAY}),
+time (\code{time}), body temperature (\code{TC}), air temperature (\code{TA}), energy
+balance (\code{enbal}), and evaporative water loss (\code{masbal}).}
 
-\item{summary}{Logical. If TRUE and \code{list_format = FALSE}, returns daily summary statistics by species and pixel.}
+\item{summary}{Logical. If TRUE and \code{list_format = FALSE}, returns daily
+summary statistics for each species and pixel. The output contains, in
+order, species (\code{sp}), pixel ID (\code{ID}), coordinates (\code{x}, \code{y}), day (\code{DAY}),
+mean and standard deviation of air temperature (\code{temp.day.mean}, \code{temp.day.sd}),
+mean and standard deviation of body temperature (\code{body.temp.day.mean}, \code{body.temp.day.sd}),
+daily summed energy balance (\code{enbal.day.sum}),
+and daily summed evaporative water loss (\code{masbal.day.sum}).}
 
 \item{break_n}{Numeric or NULL. Optional chunk size used to split large pixel/location data frames into smaller blocks before running the microclimate and physiological models. This option is useful for reducing memory usage during large simulations.}
 
@@ -128,7 +142,7 @@ ectonicheR(
 \value{
 If \code{list_format = TRUE}, returns a nested list with one element per species, each containing \code{energy} (\code{enbal}) and \code{evap} (\code{masbal}) lists for every pixel.
 
-If \code{list_format = FALSE}, returns a tidy data frame containing species, pixel coordinates, day, time, air temperature, energy balance (\code{enbal}), and evaporative water loss (\code{masbal}).
+If \code{list_format = FALSE}, returns a tidy data frame containing species, pixel coordinates, day, time, body temperature, air temperature, energy balance (\code{enbal}), and evaporative water loss (\code{masbal}).
 
 If \code{summary = TRUE}, returns daily summary statistics for each species and pixel.
 }

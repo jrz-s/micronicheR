@@ -52,9 +52,23 @@
 #'
 #' @param break_n Numeric or NULL. Optional chunk size used to split large pixel/location data frames into smaller blocks before running the microclimate and physiological models. This option is useful for reducing memory usage during large simulations.
 #'
-#' @param list_format Logical. If TRUE, returns a nested list by species, energy balance (enbal), evaporative water loss (masbal), and pixel. If FALSE, returns a tidy data frame.
+#' @param list_format Logical. Controls the format of the returned results.
+#' If TRUE, returns a nested list organized by species and pixel, with
+#' `energy` and `evap` components. Each component contains `DAY`, `time`,
+#' `TC` (body temperature), `TA` (air temperature), and the corresponding
+#' energy balance (`enbal`) or evaporative water loss (`masbal`).
+#' If FALSE, returns a tidy data frame containing, in order, species (`sp`),
+#' output type (`type`), pixel ID (`ID`), coordinates (`x`, `y`), day (`DAY`),
+#' time (`time`), body temperature (`TC`), air temperature (`TA`), energy
+#' balance (`enbal`), and evaporative water loss (`masbal`).
 #'
-#' @param summary Logical. If TRUE and `list_format = FALSE`, returns daily summary statistics by species and pixel.
+#' @param summary Logical. If TRUE and `list_format = FALSE`, returns daily
+#' summary statistics for each species and pixel. The output contains, in
+#' order, species (`sp`), pixel ID (`ID`), coordinates (`x`, `y`), day (`DAY`),
+#' mean and standard deviation of air temperature (`temp.day.mean`, `temp.day.sd`),
+#' mean and standard deviation of body temperature (`body.temp.day.mean`, `body.temp.day.sd`),
+#' daily summed energy balance (`enbal.day.sum`),
+#' and daily summed evaporative water loss (`masbal.day.sum`).
 #'
 #' @param checkpoint_dir Character. Directory used to store checkpoint files during block processing. If NULL (default), checkpoint files are not created.
 #'
@@ -63,7 +77,7 @@
 #' @return
 #' If `list_format = TRUE`, returns a nested list with one element per species, each containing `energy` (`enbal`) and `evap` (`masbal`) lists for every pixel.
 #'
-#' If `list_format = FALSE`, returns a tidy data frame containing species, pixel coordinates, day, time, air temperature, energy balance (`enbal`), and evaporative water loss (`masbal`).
+#' If `list_format = FALSE`, returns a tidy data frame containing species, pixel coordinates, day, time, body temperature, air temperature, energy balance (`enbal`), and evaporative water loss (`masbal`).
 #'
 #' If `summary = TRUE`, returns daily summary statistics for each species and pixel.
 #'
@@ -577,6 +591,7 @@ ectonicheR <- function(
 
         DAY  <- as.numeric(met[, "DOY"])
         TIME <- as.numeric(met[, "TIME"])
+        TC   <- as.numeric(met[, "TC"])
         TA   <- as.numeric(met[, "TALOC"])
 
         qgens <- as.numeric(
@@ -613,10 +628,11 @@ ectonicheR <- function(
 
         mod.xy.eb[[l]] <- data.frame(
 
-            DAY = DAY
-          , time = TIME
-          , TA = TA
-          , enbal = qgens
+            DAY         = DAY
+          , time        = TIME
+          , TC          = TC
+          , TA          = TA
+          , enbal       = qgens
 
           , check.names = FALSE
 
@@ -624,10 +640,11 @@ ectonicheR <- function(
 
         mod.xy.mb[[l]] <- data.frame(
 
-            DAY = DAY
-          , time = TIME
-          , TA = TA
-          , masbal = evap
+            DAY         = DAY
+          , time        = TIME
+          , TC          = TC
+          , TA          = TA
+          , masbal      = evap
 
           , check.names = FALSE
 
@@ -1044,7 +1061,7 @@ ectonicheR <- function(
       ) %>%
       dplyr::select(
           .data$sp, .data$type, .data$ID, .data$x, .data$y
-        , .data$DAY, .data$time, .data$TA, .data$flux
+        , .data$DAY, .data$time, .data$TC, .data$TA, .data$flux
       ) %>%
       tidyr::pivot_wider(
           names_from  = .data$type
@@ -1064,11 +1081,16 @@ ectonicheR <- function(
       niche_df_summary <- niche_df %>%
         dplyr::group_by(.data$sp, .data$ID, .data$x, .data$y, .data$DAY) %>%
         dplyr::summarise(
-            temp.day.mean  = mean(.data$TA, na.rm = TRUE)
-          , temp.day.sd    = stats::sd(.data$TA, na.rm = TRUE)
-          , enbal.day.sum  = sum(.data$enbal, na.rm = TRUE)
-          , masbal.day.sum = sum(.data$masbal, na.rm = TRUE)
-          , .groups = "drop"
+
+            temp.day.mean       = mean(.data$TA, na.rm = TRUE)
+          , temp.day.sd         = stats::sd(.data$TA, na.rm = TRUE)
+
+          , body.temp.day.mean  = mean(.data$TC, na.rm = TRUE)
+          , body.temp.day.sd    = stats::sd(.data$TC, na.rm = TRUE)
+
+          , enbal.day.sum       = sum(.data$enbal, na.rm = TRUE)
+          , masbal.day.sum      = sum(.data$masbal, na.rm = TRUE)
+          , .groups             = "drop"
         )
 
       return(niche_df_summary)
