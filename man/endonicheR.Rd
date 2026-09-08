@@ -9,6 +9,9 @@ endonicheR(
   rtop = NULL,
   rast_or_coord = NULL,
   traits_df = NULL,
+  warm = FALSE,
+  tmin_fut = NULL,
+  tmax_fut = NULL,
   method_cover = "near",
   method_top = "bilinear",
   use_disk = FALSE,
@@ -102,6 +105,16 @@ endonicheR(
 \item{rast_or_coord}{SpatRaster, matrix, or data.frame. Study raster or coordinates used to generate the environmental input data frame.}
 
 \item{traits_df}{data.frame or NULL. Table containing species-level physiological, morphological, and behavioural parameters.}
+
+\item{warm}{Logical. If TRUE, applies a future temperature warming offset to
+the microclimate simulations based on the difference between future and
+current mean temperature. Default is FALSE.}
+
+\item{tmin_fut}{SpatRaster. Future minimum temperature raster used to
+calculate the warming offset when \code{warm = TRUE}.}
+
+\item{tmax_fut}{SpatRaster. Future maximum temperature raster used to
+calculate the warming offset when \code{warm = TRUE}.}
 
 \item{method_cover}{Character. Resampling or extraction method for the cover raster passed to \code{rast_to_df()}. Default is \code{"near"}.}
 
@@ -272,9 +285,12 @@ previously completed blocks are loaded and skipped.
 Default is TRUE.}
 }
 \value{
-If \code{list_format = TRUE}, returns a nested list with one element per species, each containing \code{energy} (\code{enbal}) and \code{evap} (\code{masbal}) lists for every pixel.
+If \code{list_format = TRUE}, returns a nested list with one element per species,
+each containing \code{energy} (\code{enbal}) and \code{evap} (\code{masbal}) lists for every pixel.
 
-If \code{list_format = FALSE}, returns a tidy data frame containing species, pixel coordinates, day, time, air temperature, energy balance (\code{enbal}), and evaporative water loss (\code{masbal}).
+If \code{list_format = FALSE}, returns a tidy data frame containing species,
+pixel coordinates, day, time, body temperature (\code{TC}), air temperature
+(\code{TA}), energy balance (\code{enbal}), and evaporative water loss (\code{masbal}).
 
 If \code{summary = TRUE}, returns daily summary statistics for each species and pixel.
 }

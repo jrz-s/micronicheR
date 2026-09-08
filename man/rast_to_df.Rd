@@ -12,7 +12,10 @@ rast_to_df(
   method_top = "bilinear",
   return = "both",
   use_disk = FALSE,
-  resample_res = NULL
+  resample_res = NULL,
+  warm = FALSE,
+  tmin_fut = NULL,
+  tmax_fut = NULL
 )
 }
 \arguments{
@@ -20,7 +23,7 @@ rast_to_df(
 
 \item{rtop}{SpatRaster. Raster containing elevation or topographic values.}
 
-\item{rast_or_coord}{SpatRaster, matrix, or data.frame. Study raster used to crop and align environmental rasters, or coordinates used to extract raster values. If coordinates are supplied, the first two columns must represent longitude (\code{x}) and latitude (\code{y}).}
+\item{rast_or_coord}{SpatRaster, matrix, or data.frame. SpatRaster used to crop and align environmental rasters, or coordinates used to extract raster values. If coordinates are supplied, longitude (\code{x}) and latitude (\code{y}) must be available in the data.}
 
 \item{method_cover}{Character. Resampling or extraction method for the cover raster. Default is \code{"near"}.}
 
@@ -31,12 +34,18 @@ rast_to_df(
 \item{use_disk}{Logical. If TRUE, intermediate raster operations are written to disk using temporary files. Default is FALSE.}
 
 \item{resample_res}{Numeric or NULL. Target resolution used when coordinates are supplied. If NULL, the coarsest resolution among input rasters is used.}
+
+\item{warm}{Logical. If TRUE, future minimum and maximum temperature rasters are extracted and used to calculate future mean temperature. Default is FALSE.}
+
+\item{tmin_fut}{SpatRaster. Future minimum temperature raster used when \code{warm = TRUE}.}
+
+\item{tmax_fut}{SpatRaster. Future maximum temperature raster used when \code{warm = TRUE}.}
 }
 \value{
-If \code{return = "data"}, a data frame with pixel ID, longitude (\code{x}), latitude (\code{y}), vegetation cover (\code{cov}), and elevation (\code{elv}). If \code{return = "rasters"}, a list of processed rasters. If \code{return = "both"}, a list containing processed rasters, the data frame, and CRS information.
+If \code{return = "data"}, a data frame with pixel ID, longitude (\code{x}), latitude (\code{y}), vegetation cover (\code{cov}), and elevation (\code{elv}). When \code{warm = TRUE}, the data frame additionally contains future minimum temperature (\code{tmin_fut}), future maximum temperature (\code{tmax_fut}), and future mean temperature (\code{tmed_fut}). If \code{return = "rasters"}, a list of processed rasters. If \code{return = "both"}, a list containing processed rasters, the data frame, and CRS information.
 }
 \description{
-Converts vegetation cover and elevation rasters into a pixel-level data frame using either a study raster or a set of coordinates. The function aligns, projects, resamples, crops, masks, and extracts raster values as needed.
+Converts vegetation cover and elevation rasters into a pixel-level data frame using either a study raster or a set of coordinates. The function aligns, projects, resamples, crops, masks, and extracts raster values as needed. When \code{warm = TRUE}, future minimum and maximum temperature rasters are also extracted and used to calculate future mean temperature.
 }
 \details{
 Convert rasters or coordinates into a pixel-level data frame

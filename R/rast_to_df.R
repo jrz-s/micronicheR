@@ -1,19 +1,22 @@
 #' Convert rasters or coordinates into a pixel-level data frame
 #' @title Convert raster inputs to data frame
-#' @description Converts vegetation cover and elevation rasters into a pixel-level data frame using either a study raster or a set of coordinates. The function aligns, projects, resamples, crops, masks, and extracts raster values as needed.
+#' @description Converts vegetation cover and elevation rasters into a pixel-level data frame using either a study raster or a set of coordinates. The function aligns, projects, resamples, crops, masks, and extracts raster values as needed. When `warm = TRUE`, future minimum and maximum temperature rasters are also extracted and used to calculate future mean temperature.
 #' @author
 #' \itemize{
 #'   \item Zárate-Salazar, J. Rafael, PhD
 #' }
 #' @param rcover SpatRaster. Raster containing vegetation cover or shade values.
 #' @param rtop SpatRaster. Raster containing elevation or topographic values.
-#' @param rast_or_coord SpatRaster, matrix, or data.frame. Study raster used to crop and align environmental rasters, or coordinates used to extract raster values. If coordinates are supplied, the first two columns must represent longitude (`x`) and latitude (`y`).
+#' @param rast_or_coord SpatRaster, matrix, or data.frame. SpatRaster used to crop and align environmental rasters, or coordinates used to extract raster values. If coordinates are supplied, longitude (`x`) and latitude (`y`) must be available in the data.
 #' @param method_cover Character. Resampling or extraction method for the cover raster. Default is `"near"`.
 #' @param method_top Character. Resampling or extraction method for the elevation raster. Default is `"bilinear"`.
 #' @param return Character. Output format. Options are `"data"`, `"rasters"`, or `"both"`. Default is `"both"`.
 #' @param use_disk Logical. If TRUE, intermediate raster operations are written to disk using temporary files. Default is FALSE.
 #' @param resample_res Numeric or NULL. Target resolution used when coordinates are supplied. If NULL, the coarsest resolution among input rasters is used.
-#' @return If `return = "data"`, a data frame with pixel ID, longitude (`x`), latitude (`y`), vegetation cover (`cov`), and elevation (`elv`). If `return = "rasters"`, a list of processed rasters. If `return = "both"`, a list containing processed rasters, the data frame, and CRS information.
+#' @param warm Logical. If TRUE, future minimum and maximum temperature rasters are extracted and used to calculate future mean temperature. Default is FALSE.
+#' @param tmin_fut SpatRaster. Future minimum temperature raster used when `warm = TRUE`.
+#' @param tmax_fut SpatRaster. Future maximum temperature raster used when `warm = TRUE`.
+#' @return If `return = "data"`, a data frame with pixel ID, longitude (`x`), latitude (`y`), vegetation cover (`cov`), and elevation (`elv`). When `warm = TRUE`, the data frame additionally contains future minimum temperature (`tmin_fut`), future maximum temperature (`tmax_fut`), and future mean temperature (`tmed_fut`). If `return = "rasters"`, a list of processed rasters. If `return = "both"`, a list containing processed rasters, the data frame, and CRS information.
 #' @examples
 #' \dontrun{
 #' df <- micronicheR::rast_to_df(
@@ -28,7 +31,7 @@
 #' @importFrom stats complete.cases
 #' @export
 rast_to_df <- function(
-      rcover
+    rcover
     , rtop
     , rast_or_coord
     , method_cover   = "near"
@@ -36,6 +39,9 @@ rast_to_df <- function(
     , return         = "both"
     , use_disk       = FALSE
     , resample_res   = NULL
+    , warm           = FALSE
+    , tmin_fut       = NULL
+    , tmax_fut       = NULL
 ) {
 
   # -------------------------------
@@ -43,6 +49,23 @@ rast_to_df <- function(
   # -------------------------------
 
   target_crs <- "EPSG:4326"
+
+  # -------------------------------
+  # 0.1. Warm validation
+  # -------------------------------
+
+  if (warm == TRUE) {
+
+    if (is.null(tmin_fut) || is.null(tmax_fut)) {
+
+      stop(
+        "When 'warm = TRUE', both 'tmin_fut' and 'tmax_fut' "
+        , "must be provided."
+      )
+
+    }
+
+  }
 
   # -------------------------------
   # 1. Detect method
@@ -80,11 +103,14 @@ rast_to_df <- function(
 
     coords <- as.data.frame(rast_or_coord)
 
-    if (ncol(coords) < 2) {
-      stop("The coordinate matrix must have at least two columns (x, y).")
-    }
+    if (!all(c("x", "y") %in% names(coords))) {
 
-    names(coords)[1:2] <- c("x", "y")
+      if (ncol(coords) < 2) {
+        stop("The coordinate matrix must have at least two columns (x, y).")
+      }
+
+      names(coords)[1:2] <- c("x", "y")
+    }
 
     # -------------------------------
     # 3. Create points (WGS84)
@@ -111,8 +137,17 @@ rast_to_df <- function(
       return(r)
     }
 
+    # Force rcover and rtop to WGS84
     rcover <- force_wgs84(rcover)
     rtop   <- force_wgs84(rtop)
+
+    # Force future climate rasters to WGS84
+    if (warm == TRUE) {
+
+      tmin_fut <- force_wgs84(tmin_fut)
+      tmax_fut <- force_wgs84(tmax_fut)
+
+    }
 
     # -------------------------------
     # 4.1 Resolution adjustment
@@ -150,6 +185,22 @@ rast_to_df <- function(
     cov_vals <- terra::extract(rcover, pts, method = method_cover)
     top_vals <- terra::extract(rtop, pts, method = method_top)
 
+    if (warm == TRUE) {
+
+      tmin_fut_vals <- terra::extract(
+        tmin_fut
+        , pts
+        , method = "bilinear"
+      )
+
+      tmax_fut_vals <- terra::extract(
+        tmax_fut
+        , pts
+        , method = "bilinear"
+      )
+
+    }
+
     df <- data.frame(
         ID  = seq_len(nrow(coords))
       , x   = coords$x
@@ -157,6 +208,17 @@ rast_to_df <- function(
       , cov = cov_vals[,2]
       , elv = top_vals[,2]
     )
+
+    if (warm == TRUE) {
+
+      df$tmin_fut <- tmin_fut_vals[,2]
+      df$tmax_fut <- tmax_fut_vals[,2]
+      df$tmed_fut <- (
+        df$tmin_fut
+        + df$tmax_fut
+      ) / 2
+
+    }
 
     df <- df[stats::complete.cases(df), ]
 
@@ -169,22 +231,53 @@ rast_to_df <- function(
     }
 
     if (return == "both") {
+
+      if (warm == TRUE) {
+
+        return(list(
+          rasters = list(
+              cover    = rcover
+            , top      = rtop
+            , tmin_fut = tmin_fut
+            , tmax_fut = tmax_fut
+          )
+          , data = df
+          , crs = "EPSG:4326"
+        ))
+
+      }
+
       return(list(
         rasters = list(
-            cover = rcover
+          cover = rcover
           , top   = rtop
-        ),
-          data = df
+        )
+        , data = df
         , crs = "EPSG:4326"
       ))
+
     }
 
     if (return == "rasters") {
+
+      if (warm == TRUE) {
+
+        return(list(
+            cover    = rcover
+          , top      = rtop
+          , tmin_fut = tmin_fut
+          , tmax_fut = tmax_fut
+          , crs      = "EPSG:4326"
+        ))
+
+      }
+
       return(list(
           cover = rcover
         , top   = rtop
         , crs   = "EPSG:4326"
       ))
+
     }
 
     stop("Invalid 'return' argument.")
@@ -217,6 +310,13 @@ rast_to_df <- function(
   rtop           <- reproject_if_needed(rtop)
   rast_or_coord  <- reproject_if_needed(rast_or_coord)
 
+  if (warm == TRUE) {
+
+    tmin_fut <- reproject_if_needed(tmin_fut)
+    tmax_fut <- reproject_if_needed(tmax_fut)
+
+  }
+
   align_to_study <- function(r, rast_or_coord, method) {
 
     filename <- if (use_disk) tempfile(fileext = ".tif") else ""
@@ -235,6 +335,23 @@ rast_to_df <- function(
 
   cover <- align_to_study(rcover, rast_or_coord, method_cover)
   top   <- align_to_study(rtop, rast_or_coord, method_top)
+
+  if (warm == TRUE) {
+
+    tmin_fut <- align_to_study(
+      tmin_fut
+      , rast_or_coord
+      , "bilinear"
+    )
+
+    tmax_fut <- align_to_study(
+      tmax_fut
+      , rast_or_coord
+      , "bilinear"
+    )
+
+  }
+
   study <- rast_or_coord
 
   clean_raster <- function(r, method, tol = 1e-10) {
@@ -259,36 +376,95 @@ rast_to_df <- function(
   names(top)   <- "elv"
   names(study) <- "study"
 
+  if (warm == TRUE) {
+
+    names(tmin_fut) <- "tmin_fut"
+    names(tmax_fut) <- "tmax_fut"
+
+  }
+
   if (return == "rasters") {
+
+    if (warm == TRUE) {
+
+      return(list(
+        cover    = cover
+        , top      = top
+        , tmin_fut = tmin_fut
+        , tmax_fut = tmax_fut
+        , crs      = target_crs
+      ))
+
+    }
+
     return(list(
-        cover = cover
+      cover = cover
       , top   = top
       , crs   = target_crs
     ))
+
   }
 
   stack <- c(cover, top)
 
+  if (warm == TRUE) {
+
+    stack <- c(
+      stack
+      , tmin_fut
+      , tmax_fut
+    )
+
+  }
+
   df <- terra::as.data.frame(stack, xy = TRUE, na.rm = TRUE)  %>%
     tibble::rownames_to_column("ID")
+
+  if (warm == TRUE) {
+
+    df$tmed_fut <- (
+      df$tmin_fut
+      + df$tmax_fut
+    ) / 2
+
+  }
 
   if (return == "data") {
     return(df)
   }
 
   if (return == "both") {
+
+    if (warm == TRUE) {
+
+      return(list(
+        rasters = list(
+          study    = study
+          , cover    = cover
+          , top      = top
+          , tmin_fut = tmin_fut
+          , tmax_fut = tmax_fut
+        )
+        , data = df
+        , crs = target_crs
+      ))
+
+    }
+
     return(list(
       rasters = list(
-          study = study
+        study = study
         , cover = cover
         , top   = top
-      ),
-        data = df
+      )
+      , data = df
       , crs = target_crs
     ))
+
   }
 
   stop("Invalid 'return' argument.")
+
 }
 
 # -------------------------------------------------------------------------

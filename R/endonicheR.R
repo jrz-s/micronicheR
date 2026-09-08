@@ -17,6 +17,13 @@
 #' @param method_top Character. Resampling or extraction method for the elevation raster passed to `rast_to_df()`. Default is `"bilinear"`.
 #' @param use_disk Logical. If TRUE, intermediate raster operations are written to disk using temporary files. Default is FALSE.
 #' @param resample_res Numeric or NULL. Target resolution used by `rast_to_df()` when coordinates are supplied.
+#' @param warm Logical. If TRUE, applies a future temperature warming offset to
+#'   the microclimate simulations based on the difference between future and
+#'   current mean temperature. Default is FALSE.
+#' @param tmin_fut SpatRaster. Future minimum temperature raster used to
+#'   calculate the warming offset when `warm = TRUE`.
+#' @param tmax_fut SpatRaster. Future maximum temperature raster used to
+#'   calculate the warming offset when `warm = TRUE`.
 #' @param sample_n Integer or NULL. Optional number of pixels or locations to sample before running the microclimate model.
 #' @param sample_frac Numeric or NULL. Optional fraction of pixels or locations to sample before running the microclimate model.
 #' @param seed Integer or NULL. Optional random seed used when `sample_n` or `sample_frac` is supplied.
@@ -100,9 +107,12 @@
 #' previously completed blocks are loaded and skipped.
 #' Default is TRUE.
 #' @return
-#' If `list_format = TRUE`, returns a nested list with one element per species, each containing `energy` (`enbal`) and `evap` (`masbal`) lists for every pixel.
+#' If `list_format = TRUE`, returns a nested list with one element per species,
+#' each containing `energy` (`enbal`) and `evap` (`masbal`) lists for every pixel.
 #'
-#' If `list_format = FALSE`, returns a tidy data frame containing species, pixel coordinates, day, time, air temperature, energy balance (`enbal`), and evaporative water loss (`masbal`).
+#' If `list_format = FALSE`, returns a tidy data frame containing species,
+#' pixel coordinates, day, time, body temperature (`TC`), air temperature
+#' (`TA`), energy balance (`enbal`), and evaporative water loss (`masbal`).
 #'
 #' If `summary = TRUE`, returns daily summary statistics for each species and pixel.
 #'
@@ -141,6 +151,11 @@ endonicheR <- function(
   , rast_or_coord = NULL
   # Dataframe with the traits provided by the researcher
   , traits_df     = NULL
+
+  # Warm conditional argument
+  , warm      = FALSE
+  , tmin_fut  = NULL
+  , tmax_fut  = NULL
 
   # arguments passed to rast_to_df()
   , method_cover  = "near"
@@ -286,7 +301,7 @@ endonicheR <- function(
   # ================================================================
 
   df <- rast_to_df(
-      rcover        = rcover
+    rcover        = rcover
     , rtop          = rtop
     , rast_or_coord = rast_or_coord
     , method_cover  = method_cover
@@ -294,6 +309,9 @@ endonicheR <- function(
     , return        = "data"
     , use_disk      = use_disk
     , resample_res  = resample_res
+    , warm          = warm
+    , tmin_fut      = tmin_fut
+    , tmax_fut      = tmax_fut
   )
 
   # Optional sampling of pixels/locations
@@ -361,6 +379,8 @@ endonicheR <- function(
         , maxshade = maxshade # use 100 for default (Maximum shade level to use (%) (can be a single value or a vector of daily values))
         , runshade = runshade # use 1 for default ()
         , Usrhyt   = Usrhyt # use 0 (before was 0.01) (for default Run the microclimate model twice, once for each shade level (1) or just once for the minimum shade (0)?)
+        , warm     = df$warm[l]
+
       )
 
       micro_pixels[[l]] <- list(
@@ -690,6 +710,69 @@ endonicheR <- function(
     message(
       "NicheMapR global climate data are registered. Continuing process..."
     )
+
+  }
+
+  # ================================================================
+  # 4.1.1. Extract current climate for warming scenario
+  # ------------------------------------------------
+  # Current climate data are obtained from the global climate
+  # dataset registered by NicheMapR.
+  # ================================================================
+
+  if (warm == TRUE) {
+
+    gcfolder_env <- new.env()
+
+    load(
+      gcfolder_file
+      , envir = gcfolder_env
+    )
+
+    folder <- gcfolder_env$folder
+
+    global_climate_file <- file.path(
+      folder
+      , "global_climate.nc"
+    )
+
+    global_climate <- terra::rast(
+      global_climate_file
+    )
+
+    geo <- terra::vect(
+      df
+      , geom = c("x", "y")
+      , crs = "EPSG:4326"
+    )
+
+    clim <- terra::extract(
+      global_climate
+      , geo
+    )
+
+    cur_tmin <- clim[, 38:49] / 10
+
+    cur_tmax <- clim[, 50:61] / 10
+
+    tmin_curr <- rowMeans(
+      cur_tmin
+      , na.rm = TRUE
+    )
+
+    tmax_curr <- rowMeans(
+      cur_tmax
+      , na.rm = TRUE
+    )
+
+    tmed_curr <- (
+      tmin_curr + tmax_curr
+    ) / 2
+
+    df$tmin_curr <- tmin_curr
+    df$tmax_curr <- tmax_curr
+    df$tmed_curr <- tmed_curr
+    df$warm <- (df$tmed_fut - df$tmed_curr)
 
   }
 
