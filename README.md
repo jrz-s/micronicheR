@@ -8,9 +8,16 @@ simulations
 modeling based on microclimate simulations generated with the
 `NicheMapR` package. The current release provides complete workflows for
 mechanistic physiological niche modeling of both endotherms
-(`endonicheR()`) and ectotherms (`ectonicheR()`). The package is
-designed as a modular framework in which different physiological models
-share the same microclimate workflow.
+(`endonicheR()`) and ectotherms (`ectonicheR()`). For ectotherms,
+`ectonicheR()` provides simulated body temperature (`TC`) together with
+local air temperature (`TA`). The package is designed as a modular
+framework in which different physiological models share the same
+microclimate workflow.
+
+The package also supports future warming scenarios through the `warm`
+argument in `endonicheR()` and `ectonicheR()`. When `warm = TRUE`,
+future minimum and maximum temperature rasters can be provided to
+calculate and apply a warming offset to the microclimate simulations.
 
 The package was designed to provide:
 
@@ -19,7 +26,11 @@ The package was designed to provide:
 - run microclimate simulations only once per pixel;
 - reuse microclimate outputs across multiple species;
 - integrate environmental rasters and physiological traits;
+- simulate body temperature and local air temperature for ectotherms;
+- support future warming scenarios through user-provided minimum and
+  maximum temperature rasters;
 - support large-scale spatial simulations;
+- provide flexible output formats for detailed and summarized analyses;
 - save intermediate results through an optional checkpoint system for
   long simulations;
 - resume interrupted simulations without recomputing completed blocks.
@@ -172,7 +183,8 @@ list.files(
 
     ## [1] "coord_example.csv"             "cover_example.tif"            
     ## [3] "elevation_example.tif"         "study_example.tif"            
-    ## [5] "traits_ectonicheR_example.csv" "traits_endonicheR_example.csv"
+    ## [5] "tmax_fut_example.tif"          "tmin_fut_example.tif"         
+    ## [7] "traits_ectonicheR_example.csv" "traits_endonicheR_example.csv"
 
 The following six files should appear:
 
@@ -206,6 +218,22 @@ study <- terra::rast(
   system.file(
       "extdata"
     , "study_example.tif"
+    , package = "micronicheR"
+  )
+)
+
+tmax_fut <- terra::rast(
+  system.file(
+      "extdata"
+    , "tmax_fut_example.tif"
+    , package = "micronicheR"
+  )
+)
+
+tmin_fut <- terra::rast(
+  system.file(
+      "extdata"
+    , "tmin_fut_example.tif"
     , package = "micronicheR"
   )
 )
@@ -301,6 +329,24 @@ out_df_tocoord <- micronicheR::endonicheR(
 head(out_df_tocoord)
 ```
 
+## Run `endonicheR()` using a study raster with `warm = TRUE`
+
+``` r
+out_endo_warm <- micronicheR::endonicheR(
+    rcover = cover
+  , rtop = elev
+  , rast_or_coord = study
+  , traits_df = traits
+  , warm = TRUE
+  , tmin_fut = tmin_fut
+  , tmax_fut = tmax_fut
+  , sample_n = 2
+  , list_format = FALSE
+)
+
+head(out_endo_warm)
+```
+
 ## Ectotherm physiological niche modeling: `ectonicheR()`
 
 ## Run `ectonicheR()` using a study raster
@@ -331,6 +377,24 @@ out_df_tocoord <- micronicheR::ectonicheR(
 )
 
 head(out_df_tocoord)
+```
+
+## Run `ectonicheR()` using a study raster with `warm = TRUE`
+
+``` r
+out_ecto_warm <- micronicheR::ectonicheR(
+    rcover = cover
+  , rtop = elev
+  , rast_or_coord = study
+  , traits_df = traits
+  , warm = TRUE
+  , tmin_fut = tmin_fut
+  , tmax_fut = tmax_fut
+  , sample_n = 2
+  , list_format = FALSE
+)
+
+head(out_ecto_warm)
 ```
 
 ## Output formats

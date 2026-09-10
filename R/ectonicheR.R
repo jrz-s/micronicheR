@@ -21,6 +21,10 @@
 #' @param use_disk Logical. If TRUE, intermediate raster operations are written to disk using temporary files. Default is FALSE.
 #' @param resample_res Numeric or NULL. Target resolution used by `rast_to_df()` when coordinates are supplied.
 #'
+#' @param warm Logical. If TRUE, future minimum and maximum temperature rasters are extracted and used to calculate the warming offset passed to `NicheMapR::micro_global()`. Default is FALSE.
+#' @param tmin_fut SpatRaster. Future minimum temperature raster used when `warm = TRUE`.
+#' @param tmax_fut SpatRaster. Future maximum temperature raster used when `warm = TRUE`.
+#'
 #' @param sample_n Integer or NULL. Optional number of pixels or locations to sample before running the microclimate model.
 #' @param sample_frac Numeric or NULL. Optional fraction of pixels or locations to sample before running the microclimate model.
 #' @param seed Integer or NULL. Optional random seed used when `sample_n` or `sample_frac` is supplied.
@@ -120,11 +124,13 @@ ectonicheR <- function(
   # Species traits
   , traits_df = NULL
 
-  # Arguments passed to rast_to_df()
   , method_cover = "near"
   , method_top = "bilinear"
   , use_disk = FALSE
   , resample_res = NULL
+  , warm = FALSE
+  , tmin_fut = NULL
+  , tmax_fut = NULL
 
   # Optional sampling
   , sample_n = NULL
@@ -210,6 +216,9 @@ ectonicheR <- function(
     , return = "data"
     , use_disk = use_disk
     , resample_res = resample_res
+    , warm = warm
+    , tmin_fut = tmin_fut
+    , tmax_fut = tmax_fut
   )
 
   # Optional sampling of pixels/locations
@@ -306,6 +315,7 @@ ectonicheR <- function(
 
           , runshade = runshade
           , Usrhyt   = Usrhyt
+          , warm     = df$warm[l]
 
         ),
 
@@ -746,6 +756,72 @@ ectonicheR <- function(
     message(
       "NicheMapR global climate data are registered. Continuing process..."
     )
+
+  }
+
+  # ================================================================
+  # Future warming scenario
+  # ================================================================
+
+  if (warm == TRUE) {
+
+    gcfolder_env <- new.env()
+
+    load(
+      gcfolder_file
+      , envir = gcfolder_env
+    )
+
+    folder <- gcfolder_env$folder
+
+    global_climate_file <- file.path(
+      folder
+      , "global_climate.nc"
+    )
+
+    global_climate <- terra::rast(
+      global_climate_file
+    )
+
+    geo <- terra::vect(
+      df
+      , geom = c("x", "y")
+      , crs = "EPSG:4326"
+    )
+
+    clim <- terra::extract(
+      global_climate
+      , geo
+    )
+
+    cur_tmin <- clim[, 38:49] / 10
+    cur_tmax <- clim[, 50:61] / 10
+
+    tmin_curr <- rowMeans(
+      cur_tmin
+      , na.rm = TRUE
+    )
+
+    tmax_curr <- rowMeans(
+      cur_tmax
+      , na.rm = TRUE
+    )
+
+    tmed_curr <- (
+      tmin_curr + tmax_curr
+    ) / 2
+
+    df$tmin_curr <- tmin_curr
+    df$tmax_curr <- tmax_curr
+    df$tmed_curr <- tmed_curr
+
+    df$warm <- (
+      df$tmed_fut - df$tmed_curr
+    )
+
+  } else {
+
+    df$warm <- 0
 
   }
 
