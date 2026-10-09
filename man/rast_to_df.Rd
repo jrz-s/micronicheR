@@ -10,6 +10,7 @@ rast_to_df(
   rast_or_coord,
   method_cover = "near",
   method_top = "bilinear",
+  method_study = "near",
   return = "both",
   use_disk = FALSE,
   resample_res = NULL,
@@ -28,6 +29,10 @@ rast_to_df(
 \item{method_cover}{Character. Resampling or extraction method for the cover raster. Default is \code{"near"}.}
 
 \item{method_top}{Character. Resampling or extraction method for the elevation raster. Default is \code{"bilinear"}.}
+
+\item{method_study}{Character. Resampling method used when reprojecting
+the study raster. Default is \code{"near"}, suitable for binary or
+categorical rasters.}
 
 \item{return}{Character. Output format. Options are \code{"data"}, \code{"rasters"}, or \code{"both"}. Default is \code{"both"}.}
 

@@ -10,6 +10,9 @@
 #' @param rast_or_coord SpatRaster, matrix, or data.frame. SpatRaster used to crop and align environmental rasters, or coordinates used to extract raster values. If coordinates are supplied, longitude (`x`) and latitude (`y`) must be available in the data.
 #' @param method_cover Character. Resampling or extraction method for the cover raster. Default is `"near"`.
 #' @param method_top Character. Resampling or extraction method for the elevation raster. Default is `"bilinear"`.
+#' @param method_study Character. Resampling method used when reprojecting
+#'   the study raster. Default is `"near"`, suitable for binary or
+#'   categorical rasters.
 #' @param return Character. Output format. Options are `"data"`, `"rasters"`, or `"both"`. Default is `"both"`.
 #' @param use_disk Logical. If TRUE, intermediate raster operations are written to disk using temporary files. Default is FALSE.
 #' @param resample_res Numeric or NULL. Target resolution used when coordinates are supplied. If NULL, the coarsest resolution among input rasters is used.
@@ -36,6 +39,7 @@ rast_to_df <- function(
     , rast_or_coord
     , method_cover   = "near"
     , method_top     = "bilinear"
+    , method_study   = "near"
     , return         = "both"
     , use_disk       = FALSE
     , resample_res   = NULL
@@ -122,7 +126,7 @@ rast_to_df <- function(
     # 4. Force rasters to WGS84
     # -------------------------------
 
-    force_wgs84 <- function(r) {
+    force_wgs84 <- function(r, method) {
 
       crs_wgs <- "EPSG:4326"
 
@@ -131,21 +135,25 @@ rast_to_df <- function(
       }
 
       if (!terra::same.crs(r, crs_wgs)) {
-        r <- terra::project(r, crs_wgs)
+        r <- terra::project(
+          r
+          , crs_wgs
+          , method = method
+        )
       }
 
       return(r)
     }
 
     # Force rcover and rtop to WGS84
-    rcover <- force_wgs84(rcover)
-    rtop   <- force_wgs84(rtop)
+    rcover <- force_wgs84(rcover, method_cover)
+    rtop   <- force_wgs84(rtop, method_top)
 
     # Force future climate rasters to WGS84
     if (warm == TRUE) {
 
-      tmin_fut <- force_wgs84(tmin_fut)
-      tmax_fut <- force_wgs84(tmax_fut)
+      tmin_fut <- force_wgs84(tmin_fut, "bilinear")
+      tmax_fut <- force_wgs84(tmax_fut, "bilinear")
 
     }
 
@@ -299,21 +307,29 @@ rast_to_df <- function(
     message("Different CRS values detected. Reprojecting to: ", target_crs_name)
   }
 
-  reproject_if_needed <- function(r) {
+  reproject_if_needed <- function(r, method) {
+
     if (!terra::same.crs(r, target_crs)) {
-      r <- terra::project(r, target_crs)
+
+      r <- terra::project(
+        r
+        , target_crs
+        , method = method
+      )
+
     }
+
     return(r)
   }
 
-  rcover         <- reproject_if_needed(rcover)
-  rtop           <- reproject_if_needed(rtop)
-  rast_or_coord  <- reproject_if_needed(rast_or_coord)
+  rcover        <- reproject_if_needed(rcover, method_cover)
+  rtop          <- reproject_if_needed(rtop, method_top)
+  rast_or_coord <- reproject_if_needed(rast_or_coord, method_study)
 
   if (warm == TRUE) {
 
-    tmin_fut <- reproject_if_needed(tmin_fut)
-    tmax_fut <- reproject_if_needed(tmax_fut)
+    tmin_fut <- reproject_if_needed(tmin_fut, "bilinear")
+    tmax_fut <- reproject_if_needed(tmax_fut, "bilinear")
 
   }
 

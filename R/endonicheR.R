@@ -379,7 +379,7 @@ endonicheR <- function(
         , maxshade = maxshade # use 100 for default (Maximum shade level to use (%) (can be a single value or a vector of daily values))
         , runshade = runshade # use 1 for default ()
         , Usrhyt   = Usrhyt # use 0 (before was 0.01) (for default Run the microclimate model twice, once for each shade level (1) or just once for the minimum shade (0)?)
-        , warm     = df$warm[l]
+        , warm     = if (warm) df$warm[l] else 0
 
       )
 
